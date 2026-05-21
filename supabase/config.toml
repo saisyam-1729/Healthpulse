@@ -1,0 +1,10 @@
+project_id = "uosslsccfzcyeoqsqbca"
+
+[functions.health-data]
+verify_jwt = false
+
+[functions.analyze-symptoms]
+verify_jwt = false
+
+[functions.send-whatsapp-alert]
+verify_jwt = false

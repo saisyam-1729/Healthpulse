@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HealthPulse AI</title>
+    <meta name="description" content="HealthPulse AI - The next-generation AI healthcare platform for real-time vitals tracking, personalized medical insights, and automated health intelligence." />
+    <meta name="author" content="HealthPulse AI Intelligence" />
+    <meta name="theme-color" content="#050a14" />
+
+    <meta property="og:title" content="HealthPulse AI | Next-Gen Intelligence" />
+    <meta property="og:description" content="Real-time biometric tracking meets advanced neural analysis. Personalized health intelligence at your fingertips." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-preview.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@HealthPulseAI" />
+    <meta name="twitter:title" content="HealthPulse AI | Neural Health Platform" />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script>
+      // Clean Global Error Catcher
+      const logError = (type, err, stack) => {
+        console.error(`[Global ${type}]`, err, stack);
+        if (window.location.hostname === 'localhost') {
+          // Only show overlay on local dev for productivity
+          const div = document.createElement('div');
+          div.style = "position:fixed;bottom:20px;right:20px;z-index:99999;background:rgba(255,0,0,0.9);color:white;padding:15px;border-radius:12px;font-family:monospace;max-width:300px;font-size:10px;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);box-shadow:0 10px 40px rgba(0,0,0,0.5)";
+          div.innerHTML = `<h4 style="margin:0 0 5px 0;color:#ffcccc">RUNTIME_${type}</h4><p style="margin:0;opacity:0.8">${err}</p>`;
+          document.body.appendChild(div);
+          setTimeout(() => div.remove(), 10000);
+        }
+      };
+      window.addEventListener('error', e => logError('ERROR', e.message, e.error?.stack));
+      window.addEventListener('unhandledrejection', e => logError('PROMISE_REJECTION', e.reason));
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
