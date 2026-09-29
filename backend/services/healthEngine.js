@@ -88,10 +88,10 @@ const generateHealthInsights = (userData = {}, vitalsData = {}, recentReadings =
     const isHrIncreasing = hrTrend.every((v, i) => i === 0 || v >= hrTrend[i-1]);
     const isSpo2Decreasing = spo2Trend.every((v, i) => i === 0 || v <= spo2Trend[i-1]);
 
-    if (isHrIncreasing && hr > 90) {
+    if (isHrIncreasing && hrTrend[hrTrend.length - 1] > hrTrend[0] && hr > 90) {
       alerts.push({ severity: 'high', type: 'trend', message: 'Predictive Alert: Sustained upward trend in heart rate detected.' });
     }
-    if (isSpo2Decreasing && spo2 < 97) {
+    if (isSpo2Decreasing && spo2Trend[spo2Trend.length - 1] < spo2Trend[0] && spo2 < 97) {
       alerts.push({ severity: 'high', type: 'trend', message: 'Predictive Alert: Potential respiratory distress developing (SpO2 downward trend).' });
     }
   }

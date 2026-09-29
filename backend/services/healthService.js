@@ -15,11 +15,12 @@ const analyzeUserHealth = async (userId, sensorData, deviceId) => {
     // 1. Fetch Latest Onboarding Data and Recent Vitals
     const [onboarding, recentVitals] = await Promise.all([
       OnboardingData.findOne({ user_id: userId }).sort({ createdAt: -1 }),
-      HealthData.find({ user_id: userId }).sort({ createdAt: -1 }).limit(10)
+      HealthData.find({ userId }).sort({ createdAt: -1 }).limit(10)
     ]);
     
     // 2. Generate AI Insights via Health Engine
-    const healthResult = generateHealthInsights(onboarding || {}, sensorData, recentVitals);
+    // Query is newest-first; trend detection expects chronological order.
+    const healthResult = generateHealthInsights(onboarding || {}, sensorData, [...recentVitals].reverse());
     
     // 3. Automated Alert Generation
     if (healthResult.alerts && healthResult.alerts.length > 0) {
@@ -44,7 +45,7 @@ const analyzeUserHealth = async (userId, sensorData, deviceId) => {
     healthScore = Math.max(0, Math.min(100, healthScore));
 
     // 5. Trigger External AI Service (Optional)
-    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5001';
+    const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:5002';
     let aiResult = null;
     
     try {
@@ -54,7 +55,9 @@ const analyzeUserHealth = async (userId, sensorData, deviceId) => {
           onboardingData: onboarding,
           vitals: sensorData
         }, { timeout: 3000 });
-        aiResult = aiResponse.data;
+        // Flask /analyze is a compatibility stub that returns fixed placeholder values for
+        // non-emergencies; only its emergency verdict carries real information.
+        if (aiResponse.data?.type === 'EMERGENCY') aiResult = aiResponse.data;
       }
     } catch (aiErr) {
       console.warn("[HealthService] External AI Service unreachable, using local intelligence engine.");
