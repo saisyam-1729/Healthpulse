@@ -1,4 +1,4 @@
-// Run with: node --test backend/tests
+// Run with: node --test backend/tests/healthEngine.trend.test.js
 const test = require('node:test');
 const assert = require('node:assert');
 const { generateHealthInsights } = require('../services/healthEngine');
