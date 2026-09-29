@@ -1,0 +1,212 @@
+{
+  "experiment_id": "20260929-200448-872f5a",
+  "name": "full-100ep-serving-10x25",
+  "recorded_at_utc": "2026-09-29T20:04:48.517638+00:00",
+  "git_commit": "9bce2b2b340f973d9dbc7a9267bb3a3784744e10",
+  "git_dirty": false,
+  "dataset": {
+    "kind": "synthetic (ai_service/diffusion/data/synthetic.py) - NOT real patient data",
+    "generator_settings": {
+      "num_sequences": 400,
+      "sequence_length": 60,
+      "sampling_interval_seconds": 5,
+      "missing_prob": 0.1,
+      "gap_prob": 0.05,
+      "gap_length_range": [
+        3,
+        8
+      ],
+      "seed": 1234
+    },
+    "split": {
+      "train_frac": 0.7,
+      "val_frac": 0.15,
+      "test_frac": 0.15,
+      "seed": 1234
+    },
+    "channels": [
+      "heartRate",
+      "spo2",
+      "temperature"
+    ],
+    "context_length": 24,
+    "prediction_length": 6
+  },
+  "model_config": {
+    "name": "csdi_lite",
+    "hidden_dim": 64,
+    "time_embed_dim": 32,
+    "feature_embed_dim": 16,
+    "num_layers": 4,
+    "num_heads": 4,
+    "dropout": 0.1,
+    "diffusion_steps": 50,
+    "beta_start": 0.0001,
+    "beta_end": 0.5,
+    "schedule": "quad",
+    "use_fourier_loss": true,
+    "fourier_loss_weight": 0.05
+  },
+  "hyperparameters": {
+    "seed": 42,
+    "batch_size": 32,
+    "epochs": 100,
+    "learning_rate": 0.001,
+    "lr_scheduler": "cosine",
+    "warmup_epochs": 5,
+    "grad_clip_norm": 1.0,
+    "early_stopping_patience": 15,
+    "mixed_precision": false,
+    "checkpoint_dir": "checkpoints",
+    "resume_from": null,
+    "device": "auto",
+    "num_workers": 0
+  },
+  "inference_config": {
+    "num_samples": 20,
+    "sampling_steps": 50,
+    "batch_size": 16,
+    "timeout_seconds": 10,
+    "device": "auto"
+  },
+  "random_seed": 42,
+  "training": {
+    "epochs_run": 100,
+    "best_epoch": 88,
+    "best_val_loss": 0.24646457549879106,
+    "final_train_loss": 0.24962833496358464,
+    "final_val_loss": 0.2590868567763749,
+    "total_train_seconds": 17885.6
+  },
+  "test_metrics": {
+    "num_test_windows": 300,
+    "context_length": 24,
+    "inference_num_samples": 10,
+    "inference_sampling_steps": 25,
+    "prediction_length": 6,
+    "diffusion": {
+      "mae": 0.27674049139022827,
+      "rmse": 0.34850987792015076,
+      "mape": 93.14572143554688,
+      "smape": 51.34857940673828,
+      "crps": 0.20618544643994552,
+      "coverage_90": 0.782608695652174
+    },
+    "persistence": {
+      "mae": 0.3169977068901062,
+      "rmse": 0.4034147262573242,
+      "mape": 113.30741882324219,
+      "smape": 54.92967987060547
+    },
+    "linear_interpolation": {
+      "mae": 0.30155232548713684,
+      "rmse": 0.387668251991272,
+      "mape": 106.93885040283203,
+      "smape": 53.16376495361328
+    },
+    "mean": {
+      "mae": 0.9080538153648376,
+      "rmse": 1.0704649686813354,
+      "mape": 99.9974594116211,
+      "smape": 199.98291015625
+    },
+    "attention_imputer": {
+      "mae": 0.2675941586494446,
+      "rmse": 0.33508673310279846,
+      "mape": 91.33618927001953,
+      "smape": 50.127540588378906
+    },
+    "physical_units": {
+      "diffusion": {
+        "heartRate": {
+          "mae": 1.7765449285507202,
+          "rmse": 2.217580556869507
+        },
+        "spo2": {
+          "mae": 0.2755965292453766,
+          "rmse": 0.3479189872741699
+        },
+        "temperature": {
+          "mae": 0.05051521956920624,
+          "rmse": 0.06345977634191513
+        }
+      },
+      "persistence": {
+        "heartRate": {
+          "mae": 1.8266417980194092,
+          "rmse": 2.3394463062286377
+        },
+        "spo2": {
+          "mae": 0.3460022807121277,
+          "rmse": 0.4317270815372467
+        },
+        "temperature": {
+          "mae": 0.05740877613425255,
+          "rmse": 0.07226257771253586
+        }
+      },
+      "linear_interpolation": {
+        "heartRate": {
+          "mae": 1.678566575050354,
+          "rmse": 2.211459159851074
+        },
+        "spo2": {
+          "mae": 0.3331352174282074,
+          "rmse": 0.417519211769104
+        },
+        "temperature": {
+          "mae": 0.05537662282586098,
+          "rmse": 0.06962833553552628
+        }
+      },
+      "mean": {
+        "heartRate": {
+          "mae": 5.757064342498779,
+          "rmse": 7.025644302368164
+        },
+        "spo2": {
+          "mae": 0.7830581068992615,
+          "rmse": 0.9138070344924927
+        },
+        "temperature": {
+          "mae": 0.19117623567581177,
+          "rmse": 0.21849361062049866
+        }
+      },
+      "attention_imputer": {
+        "heartRate": {
+          "mae": 1.8050535917282104,
+          "rmse": 2.243478536605835
+        },
+        "spo2": {
+          "mae": 0.2599644064903259,
+          "rmse": 0.3262846767902374
+        },
+        "temperature": {
+          "mae": 0.047838401049375534,
+          "rmse": 0.06002612039446831
+        }
+      }
+    },
+    "diffusion_physiological_validity": {
+      "heartRate": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.0
+      },
+      "spo2": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.0
+      },
+      "temperature": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.0
+      }
+    }
+  },
+  "checkpoint": {
+    "path": "checkpoints\\best.pt",
+    "sha256": "6e13b115be67cd81fd151569b1eee454c9685b6ff550b9d488af7458357ac7ec"
+  },
+  "config_file": "configs/diffusion.yaml",
+  "notes": "Same checkpoint as full-100ep, evaluated at the serving budget (10 samples x 25 steps) with the corrected respaced sampler. An earlier run with the incorrect strided sampler gave MAE 0.347 and is not registered."
+}
