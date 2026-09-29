@@ -1,0 +1,69 @@
+# Development-scale training config — NOT the production default.
+#
+# Same architecture/data-shape as configs/diffusion.yaml, but with fewer
+# synthetic sequences and epochs so a full train+eval run completes in
+# minutes on a CPU-only machine. Used to produce the FIRST real (not smoke)
+# measured results reported in docs/IMPLEMENTATION_REPORT.md. Any numbers
+# from this config must be labeled "dev-scale synthetic-data run", not
+# treated as a final benchmark — see brief item 38 (do not fabricate/
+# overstate results).
+
+data:
+  channels: [heartRate, spo2, temperature]
+  context_length: 24
+  prediction_length: 6
+  synthetic:
+    num_sequences: 200
+    sequence_length: 60
+    sampling_interval_seconds: 5
+    missing_prob: 0.1
+    gap_prob: 0.05
+    gap_length_range: [3, 8]
+    seed: 1234
+
+split:
+  train_frac: 0.7
+  val_frac: 0.15
+  test_frac: 0.15
+  seed: 1234
+
+model:
+  name: csdi_lite
+  hidden_dim: 64
+  time_embed_dim: 32
+  feature_embed_dim: 16
+  num_layers: 4
+  num_heads: 4
+  dropout: 0.1
+  diffusion_steps: 50
+  beta_start: 0.0001
+  beta_end: 0.5
+  schedule: quad
+  use_fourier_loss: true
+  fourier_loss_weight: 0.05
+
+training:
+  seed: 42
+  batch_size: 64
+  epochs: 15
+  learning_rate: 0.001
+  lr_scheduler: cosine
+  warmup_epochs: 2
+  grad_clip_norm: 1.0
+  early_stopping_patience: 15
+  mixed_precision: false
+  checkpoint_dir: checkpoints_dev
+  resume_from: null
+  device: auto
+  num_workers: 0
+
+inference:
+  num_samples: 10
+  sampling_steps: 25
+  batch_size: 16
+  timeout_seconds: 10
+  device: auto
+
+evaluation:
+  artificial_mask_ratio: 0.2
+  prediction_interval: 0.9

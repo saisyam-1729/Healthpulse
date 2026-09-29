@@ -1,0 +1,65 @@
+# HealthPulse diffusion model configuration.
+# Every dimension/hyperparameter used by training or inference must be read
+# from here (or overridden via CLI/env), never hardcoded in Python.
+# See docs/MODEL_SELECTION.md for why these choices were made.
+
+data:
+  channels: [heartRate, spo2, temperature]   # matches backend/models/HealthData.js exactly
+  context_length: 24     # number of observed timesteps fed to the model
+  prediction_length: 6   # number of future timesteps treated as fully masked (forecasting)
+  # Synthetic-generator-only settings (real data path does not use these):
+  synthetic:
+    num_sequences: 400
+    sequence_length: 60
+    sampling_interval_seconds: 5
+    missing_prob: 0.1       # probability any single (timestep, channel) is missing
+    gap_prob: 0.05          # probability of starting a multi-step "finger removed" gap
+    gap_length_range: [3, 8]
+    seed: 1234
+
+split:
+  train_frac: 0.7
+  val_frac: 0.15
+  test_frac: 0.15
+  seed: 1234
+
+model:
+  name: csdi_lite
+  hidden_dim: 64
+  time_embed_dim: 32
+  feature_embed_dim: 16
+  num_layers: 4
+  num_heads: 4
+  dropout: 0.1
+  diffusion_steps: 50
+  beta_start: 0.0001
+  beta_end: 0.5
+  schedule: quad          # 'linear' or 'quad' (as in the CSDI paper)
+  use_fourier_loss: true
+  fourier_loss_weight: 0.05
+
+training:
+  seed: 42
+  batch_size: 32
+  epochs: 100
+  learning_rate: 0.001
+  lr_scheduler: cosine
+  warmup_epochs: 5
+  grad_clip_norm: 1.0
+  early_stopping_patience: 15
+  mixed_precision: false   # left off by default; CPU-friendly, enable explicitly on CUDA
+  checkpoint_dir: checkpoints
+  resume_from: null
+  device: auto             # 'auto' | 'cpu' | 'cuda'
+  num_workers: 0
+
+inference:
+  num_samples: 20           # number of reverse-diffusion draws used to build the predictive distribution
+  sampling_steps: 50        # can be < diffusion_steps via DDIM-style striding; kept equal by default
+  batch_size: 16
+  timeout_seconds: 10
+  device: auto
+
+evaluation:
+  artificial_mask_ratio: 0.2   # fraction of OBSERVED points hidden at eval time to score imputation
+  prediction_interval: 0.9     # for coverage metrics (5th-95th percentile band)
