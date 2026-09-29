@@ -289,6 +289,42 @@ becomes available, since synthetic-data results do not guarantee the same
 relative ranking on real physiological signals with different noise and
 correlation structure.
 
+### Serving-time sampling budget and request latency
+
+The results above use the full sampling budget (20 samples x 50 steps). A
+dashboard request needs to be much cheaper, so the same checkpoint was
+evaluated again at **10 samples x 25 steps** on the same 300 test windows
+(`ai_service/checkpoints/eval_results_serving_10x25*.json`). This uncovered a
+bug in the first version of the strided sampler: when skipping steps it
+applied each step's single-step noise variance and could end without a clean
+final step. It was replaced with the standard respaced DDPM update (effective
+`alpha_bar_t / alpha_bar_prev` per jump, no noise on the last step). At the
+full 50 steps the two versions are mathematically identical, so the headline
+results above are unaffected; a unit test compares the sampler against an
+independently written textbook DDPM loop.
+
+| Diffusion, same checkpoint | MAE | RMSE | CRPS | 90% coverage |
+|---|---|---|---|---|
+| 20 samples x 50 steps (full) | 0.268 | 0.337 | 0.194 | 82.4% |
+| 10 x 25, first (incorrect) strided sampler | 0.347 | 0.435 | 0.258 | 79.9% |
+| 10 x 25, corrected sampler (**serving default**) | 0.277 | 0.349 | 0.206 | 78.3% |
+
+For reference, in the corrected-sampler run linear interpolation had MAE
+0.302 and the attention-imputer baseline 0.268. So at the serving budget
+diffusion is about 3% worse than at full budget on MAE, still better than
+interpolation, roughly level with the attention baseline (slightly behind),
+and its intervals are somewhat under-confident in coverage (78% vs a 90%
+target). Physiological validity checks stayed clean (0% out-of-range, 0%
+implausible jumps).
+
+**Measured request latency** (CPU only, real Flask service with the trained
+checkpoint behind the real Express route, database model stubbed, 30 stored
+readings with a 30 s gap): the first design (two parallel model runs at
+20 x 50) took 9.5 s, 19.9 s and 23.4 s for three consecutive requests. After
+making one model run return both the gap-filled context and the forecast
+(`includeContext`) and using 10 x 25, three requests took **1.4 s, 1.7 s and
+1.8 s**. These are single-machine timings, not a load test.
+
 ## 11. Limitations
 
 1. **No real HealthPulse data exists or was used.** Every number above is
@@ -315,24 +351,30 @@ correlation structure.
    and reconstruct, rather than true leave-one-out per point) — documented
    as a tradeoff in `inference/service.py`, not validated against any
    labeled anomaly data (none exists).
-7. **CPU-only inference latency has not been measured for a single
-   request** (only batched evaluation throughput) — relevant to Open
-   Question 4 (acceptable dashboard latency) in [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md).
+7. **Latency was measured on one CPU machine only** (about 1.4-1.8 s per
+   request at the serving budget, see above). It has not been tested under
+   concurrent load, on the deployment host, or against a real MongoDB, and
+   Open Question 4 (acceptable dashboard latency) in
+   [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) still needs the product owner's
+   answer.
+8. **Serving intervals are under-confident** (78% coverage at the serving
+   budget). If interval width matters to users, use more samples/steps or
+   add a recalibration step; do not present the band as a 90% interval.
 
 ## 12. Future work
 
 1. ~~Run the full production-scale training~~ — **done** (section 8-10
    above): 100 epochs completed, converged, evaluated against baselines
    with real measured results.
-2. Now that the model is competitive with baselines on synthetic data, wire a `backend/`
-   proxy route to `/api/diffusion/*` and integrate a forecast/imputation
-   view into `AnalyticsPanel.tsx`, per the brief's Phase 18-19 (clearly
-   labeling any synthetic/generated values, never showing them as real
-   readings).
+2. ~~Wire a backend proxy and a forecast/imputation view~~ - **done**:
+   `backend/routes/diffusionRoutes.js` and
+   `src/components/dashboard/ForecastPanel.tsx` (generated values are drawn
+   in different styles from measurements and carry a permanent label).
+   Still to do: test against a real MongoDB and the deployed environment.
 3. Persist `rmssd`/HRV to `HealthData` server-side (a `backend/` change,
    not an ML change) to enable a real stress-proxy label, then revisit
    stress-conditional generation.
-4. Measure single-request inference latency and decide on sampling-step
+4. ~~Measure single-request inference latency~~ (done, see above); decide on sampling-step
    count / batching tradeoffs once a real latency budget is known (Open
    Question 4).
 5. If/when real HealthPulse data becomes available, re-run the entire

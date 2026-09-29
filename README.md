@@ -77,6 +77,34 @@ python app.py
 #       GET  http://localhost:5002/api/diffusion/health
 ```
 
+### Using it in the app
+
+With the Flask service running (`python app.py` in `ai_service/`, port 5002) and
+a trained checkpoint at `ai_service/checkpoints/best.pt`, the backend exposes
+JWT-protected routes that the dashboard's "Gap-fill & Forecast (research)"
+panel calls:
+
+- `GET  /api/diffusion/insights?predictionLength=6` - fills gaps in your recent
+  readings and forecasts the next steps, with uncertainty ranges
+- `POST /api/diffusion/generate` - fully synthetic sequence (always flagged)
+- `GET  /api/diffusion/status` - is the service up and the model loaded
+
+Backend settings (see `backend/.env.example`): `AI_SERVICE_URL` (default
+`http://localhost:5002`), optional `DIFFUSION_SERVICE_URL`,
+`DIFFUSION_TIMEOUT_MS`, `DIFFUSION_NUM_SAMPLES` (default 10) and
+`DIFFUSION_SAMPLING_STEPS` (default 25). The checkpoint location can be
+overridden with `DIFFUSION_CHECKPOINT_PATH`. Everything shown by this panel is
+model-generated; it is not a measurement and not medical advice.
+
+Tests:
+
+```bash
+python -m pytest tests -q                       # Python unit tests
+python -m pytest tests/smoke_test_diffusion.py  # end-to-end smoke test
+npm run test:backend                            # Node route/grid/trend tests
+npx vitest run                                  # frontend tests
+```
+
 ### Limitations (see the full list in IMPLEMENTATION_REPORT.md)
 
 No real HealthPulse data was used or is available — all results are on

@@ -7,12 +7,17 @@ flowchart TD
         WIFI["esp32_health_monitor\nHTTP POST, ~5s"]
     end
 
-    subgraph FE["Frontend (Vercel) — src/ (unchanged in this phase)"]
+    subgraph FE["Frontend (Vercel) - src/"]
         DASH["Dashboard.tsx\ncloud poll + local LAN poll + BLE push"]
+        FP["ForecastPanel.tsx (NEW)
+user-triggered; measured vs model-estimated vs forecast"]
     end
 
-    subgraph BE["Backend (Render) — backend/ (unchanged)"]
+    subgraph BE["Backend (Render) - backend/"]
         EXPRESS["Express server.js"]
+        PROXY["routes/diffusionRoutes.js (NEW)
+JWT + rate limit; builds 5 s grid from HealthData;
+maps upstream errors to 4xx/5xx"]
         MONGO[("MongoDB — HealthData")]
         RULES["ruleEngine.js / healthEngine.js"]
     end
@@ -37,7 +42,12 @@ flowchart TD
     EXPRESS --> MONGO
     EXPRESS --> RULES
     EXPRESS -.->|"unchanged existing call"| FLASK
-    EXPRESS -.->|"NEW: to be wired, Phase 19"| API
+    EXPRESS --> PROXY
+    PROXY -->|"POST /api/diffusion/forecast
+(includeContext, one model run)"| API
+    PROXY --> MONGO
+    DASH --> FP
+    FP -->|"GET /api/diffusion/insights"| PROXY
     MONGO --> EXPRESS --> DASH
 
     TRAIN --> MODEL
@@ -70,14 +80,31 @@ file-by-file table):**
   comparing the diffusion model against deterministic baselines on
   identical held-out data.
 
-**What did NOT change in this phase:**
-- The Node/Express backend (`backend/`) — no new routes were added there
-  yet; the diffusion service is reachable directly but not yet proxied
-  through the backend (see IMPLEMENTATION_REPORT.md, "Known limitations").
-- The React frontend (`src/`) — no UI changes yet; frontend integration is
-  scoped as a follow-up phase once the model's real-data performance is
-  validated, per the brief's phased approach (item 42, Phase 6 before
-  Phase 18).
-- The ESP32 firmware — untouched.
-- The existing `ai_service/` scikit-learn disease classifier — untouched
-  and confirmed still functional.
+**Also changed since the first version of this document:**
+
+- `backend/routes/diffusionRoutes.js` + `backend/services/diffusionGrid.js`: an
+  authenticated, rate-limited proxy. `GET /api/diffusion/insights` reads the
+  signed-in user's own `HealthData`, snaps it to a 5-second grid (timing gaps
+  become genuine missing values), makes **one** call to the Python service
+  and returns gap-filled values plus a forecast with uncertainty bands.
+  `POST /api/diffusion/generate` returns clearly flagged synthetic
+  sequences; `GET /api/diffusion/status` reports availability.
+- `src/components/dashboard/ForecastPanel.tsx` + `src/lib/forecast.ts`: a
+  user-triggered panel (no polling; a request takes seconds) that draws
+  measured readings, model estimates and the forecast in visibly different
+  styles, with a permanent "model-generated, not measurements" label.
+- Python service: `/forecast` accepts `includeContext`, `numSamples` and
+  `samplingSteps`, so imputation and forecast come from a single pass.
+- Bug fixes in existing backend code, made because the integration touches
+  it (see MODIFICATION_LOG.md MOD-024): the AI-service URL default pointed
+  at the backend's own port, and `HealthData` was queried with the wrong
+  field name, which silently disabled trend alerts.
+
+**What did NOT change:**
+- The ESP32 firmware (both variants) and `supabase/`.
+- The existing `ai_service/` scikit-learn disease classifier and its
+  `/ai/predict` and `/analyze` routes.
+- Authentication and the other backend routes. Known issues found in the
+  audit that were **not** fixed here (hardcoded admin login, fallback JWT
+  secret, unauthenticated `/uploads` and `GET /api/device`) are left for the
+  project owner; see OPEN_QUESTIONS.md.
