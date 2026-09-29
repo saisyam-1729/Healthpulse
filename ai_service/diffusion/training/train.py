@@ -23,7 +23,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from diffusion.config import load_config
-from diffusion.data.synthetic import generate_from_config
+from diffusion.data.sources import load_sequences
 from diffusion.data.preprocessing import Normalizer, split_dataset, WindowDataset
 from diffusion.model.csdi import DiffusionModel
 
@@ -42,7 +42,7 @@ def resolve_device(requested: str) -> torch.device:
 
 
 def build_datasets(config):
-    raw = generate_from_config(config.data)
+    raw = load_sequences(config.data)
     train_seq, val_seq, test_seq = split_dataset(
         raw, config.split.train_frac, config.split.val_frac, config.split.test_frac, config.split.seed
     )
@@ -70,7 +70,8 @@ def evaluate(model: DiffusionModel, loader: DataLoader, device: torch.device) ->
     return total_loss / max(1, total_batches)
 
 
-def train(config_path: str, resume_override: str | None = None, seed_override: int | None = None, epochs_override: int | None = None):
+def train(config_path: str, resume_override: str | None = None, seed_override: int | None = None,
+          epochs_override: int | None = None, init_from: str | None = None):
     config = load_config(config_path)
     seed = seed_override if seed_override is not None else config.training.seed
     set_seed(seed)
@@ -81,6 +82,12 @@ def train(config_path: str, resume_override: str | None = None, seed_override: i
     val_loader = DataLoader(val_ds, batch_size=config.training.batch_size, shuffle=False, num_workers=config.training.num_workers)
 
     model = DiffusionModel(config, normalizer, device)
+    if init_from:
+        # Fine-tuning: start from pretrained weights. The normalizer stays the one fitted on THIS
+        # dataset's training split (leak-free); the network adapts to the new input scaling.
+        pretrained = torch.load(init_from, map_location=device, weights_only=False)
+        model.denoiser.load_state_dict(pretrained["denoiser_state_dict"])
+        print(f"Initialised weights from {init_from}")
     optimizer = torch.optim.Adam(model.denoiser.parameters(), lr=config.training.learning_rate)
 
     epochs = epochs_override if epochs_override is not None else config.training.epochs
@@ -157,8 +164,10 @@ def main():
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--epochs", type=int, default=None, help="override config epochs (useful for smoke tests)")
+    parser.add_argument("--init-from", type=str, default=None, help="checkpoint to fine-tune from (weights only)")
     args = parser.parse_args()
-    train(args.config, resume_override=args.resume, seed_override=args.seed, epochs_override=args.epochs)
+    train(args.config, resume_override=args.resume, seed_override=args.seed, epochs_override=args.epochs,
+          init_from=args.init_from)
 
 
 if __name__ == "__main__":

@@ -324,3 +324,60 @@ def test_last_reverse_step_adds_no_noise(monkeypatch):
         calls["n"] = 0
         d.sample(net, x0, cond, num_samples=1, sampling_steps=steps)
         assert calls["n"] == steps - 1  # noise is injected between steps, never after the final one
+
+
+# ---------- real-data loader and burst masking ----------
+
+def _write_wfdb(path, name, fs, signals):
+    """signals: list of (label, unit, gain, baseline, physical_array)."""
+    n = len(signals[0][4])
+    lines = [f"{name} {len(signals)} {fs} {n}"]
+    cols = []
+    for label, unit, gain, baseline, phys in signals:
+        lines.append(f"{name}.dat 16 {gain}({baseline})/{unit} 16 0 0 0 0 {label}")
+        cols.append(np.round(np.asarray(phys) * gain + baseline).astype("<i2"))
+    (path / f"{name}.hea").write_text("\n".join(lines) + "\n# age: 1\n")
+    np.stack(cols, axis=1).astype("<i2").tofile(path / f"{name}.dat")
+
+
+def test_noneeg_loader_parses_and_resamples(tmp_path):
+    from diffusion.data.noneeg import read_wfdb, load_noneeg
+
+    seconds = 20
+    hr = np.linspace(60, 79, seconds)
+    spo2 = np.full(seconds, 97.0)
+    temp8 = np.repeat(np.linspace(30, 31.9, seconds), 8)
+    for s in (1, 2):
+        _write_wfdb(tmp_path, f"Subject{s}_SpO2HR", 1, [("SpO2", "%", 100.0, -9000, spo2), ("hr", "bpm", 100.0, -7000, hr)])
+        _write_wfdb(tmp_path, f"Subject{s}_AccTempEDA", 8, [("temp", "degC", 100.0, -3000, temp8)])
+
+    fs, sig = read_wfdb(str(tmp_path / "Subject1_SpO2HR"))
+    assert fs == 1.0 and np.allclose(sig["hr"], hr, atol=0.01)
+
+    d = load_noneeg(str(tmp_path), step_seconds=5, subjects=[1, 2])
+    assert d.values.shape == (2, 4, 3)                        # 20 s -> 4 five-second steps
+    assert np.allclose(d.values[0, :, 0], [hr[i:i + 5].mean() for i in range(0, 20, 5)], atol=0.01)
+    assert np.allclose(d.values[0, :, 1], 97.0, atol=0.01)
+    assert np.allclose(d.values[0, 0, 2], np.linspace(30, 31.9, seconds)[:5].mean(), atol=0.01)
+    assert d.mask.min() == 1.0 and np.all(np.diff(d.timestamps[0]) == 5)
+
+
+def test_burst_mask_hides_one_contiguous_block_on_all_channels(dataset):
+    n = Normalizer.fit(dataset.values, dataset.mask)
+    full = generate_synthetic_dataset(num_sequences=5, sequence_length=30, missing_prob=0.0, gap_prob=0.0, seed=4)
+    ds = WindowDataset(full, n, context_length=12, prediction_length=3, artificial_mask_ratio=0.2,
+                       deterministic=True, seed=3, mask_strategy="burst", burst_length_range=(3, 5))
+    for i in range(10):
+        _, cond, target, _ = ds[i]
+        hidden = (target[:12] == 1).numpy()
+        rows = np.where(hidden.all(axis=1))[0]
+        assert np.array_equal(hidden.any(axis=1), hidden.all(axis=1))       # all channels together
+        assert 3 <= len(rows) <= 5 and np.all(np.diff(rows) == 1)            # one contiguous block
+        assert rows[0] > 0 and rows[-1] < 11                                  # observed on both sides
+        assert torch.all(cond[12:] == 0)
+
+
+def test_unknown_mask_strategy_rejected(dataset):
+    n = Normalizer.fit(dataset.values, dataset.mask)
+    with pytest.raises(ValueError):
+        WindowDataset(dataset, n, context_length=8, prediction_length=2, artificial_mask_ratio=0.2, mask_strategy="nope")

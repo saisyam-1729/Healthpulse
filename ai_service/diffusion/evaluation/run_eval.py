@@ -26,9 +26,9 @@ from torch.utils.data import DataLoader
 from diffusion.baselines.attention_imputer import AttentionImputer, training_loss as attn_training_loss
 from diffusion.baselines.simple import persistence_baseline, linear_interpolation_baseline, mean_baseline
 from diffusion.config import load_config
-from diffusion.data.synthetic import generate_from_config
+from diffusion.data.sources import load_sequences
 from diffusion.data.preprocessing import Normalizer, split_dataset, WindowDataset
-from diffusion.evaluation.metrics import summarize, physiological_validity_report, mae, rmse
+from diffusion.evaluation.metrics import summarize, physiological_validity_report, mae, rmse, prediction_interval_coverage
 from diffusion.model.csdi import DiffusionModel
 from diffusion.training.train import set_seed, resolve_device
 
@@ -60,6 +60,8 @@ def main():
     )
     parser.add_argument("--num-samples", type=int, default=None, help="override inference.num_samples")
     parser.add_argument("--sampling-steps", type=int, default=None, help="override inference.sampling_steps")
+    parser.add_argument("--mask", choices=["random", "burst"], default="random",
+                        help="how observed context points are hidden for imputation scoring")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -70,28 +72,31 @@ def main():
     set_seed(config.training.seed)
     device = resolve_device(config.training.device)
 
-    raw = generate_from_config(config.data)
+    raw = load_sequences(config.data)
     train_seq, val_seq, test_seq = split_dataset(
         raw, config.split.train_frac, config.split.val_frac, config.split.test_frac, config.split.seed
     )
-    normalizer = Normalizer.fit(train_seq.values, train_seq.mask)
+    diffusion_model = DiffusionModel.load_checkpoint(args.checkpoint, device)
+    # Inputs are scaled with the checkpoint's own normalizer: that is what the model was trained on
+    # and what serving uses. (For a model trained on this dataset it equals the train-split fit.)
+    normalizer = diffusion_model.normalizer
     common = dict(
         context_length=config.data.context_length,
         prediction_length=config.data.prediction_length,
         artificial_mask_ratio=config.evaluation.artificial_mask_ratio,
     )
     train_ds = WindowDataset(train_seq, normalizer, deterministic=False, **common)
-    test_ds = WindowDataset(test_seq, normalizer, deterministic=True, seed=99, **common)
+    test_ds = WindowDataset(test_seq, normalizer, deterministic=True, seed=99, mask_strategy=args.mask, **common)
 
     if args.max_test_windows is not None and len(test_ds) > args.max_test_windows:
         rng = np.random.default_rng(123)
         keep_idx = rng.choice(len(test_ds), size=args.max_test_windows, replace=False)
         test_ds = torch.utils.data.Subset(test_ds, keep_idx.tolist())
 
-    diffusion_model = DiffusionModel.load_checkpoint(args.checkpoint, device)
     attn_model = _train_attention_baseline(train_ds, config, device)
 
-    channel_means = np.zeros(len(config.data.channels), dtype=np.float32)  # normalized space -> ~0 by construction
+    # Mean baseline: this dataset's training-split means, expressed in the model's normalized space.
+    channel_means = normalizer.transform(Normalizer.fit(train_seq.values, train_seq.mask).mean).astype(np.float32)
 
     all_pred = {"diffusion": [], "persistence": [], "linear_interpolation": [], "mean": [], "attention_imputer": []}
     all_true, all_target_mask = [], []
@@ -132,7 +137,9 @@ def main():
     target_mask = np.concatenate(all_target_mask, axis=0)
     diffusion_samples = np.concatenate(all_diffusion_samples, axis=1)  # (S, N, L, C)
 
-    results = {"num_test_windows": int(true.shape[0]), "context_length": config.data.context_length,
+    results = {"data_source": config.data.source, "mask_strategy": args.mask, "checkpoint": args.checkpoint,
+               "test_sequences": int(test_seq.values.shape[0]),
+               "num_test_windows": int(true.shape[0]), "context_length": config.data.context_length,
                "inference_num_samples": config.inference.num_samples, "inference_sampling_steps": config.inference.sampling_steps,
                "prediction_length": config.data.prediction_length}
     for method, chunks in all_pred.items():
@@ -154,6 +161,24 @@ def main():
             }
             for i, ch in enumerate(config.data.channels)
         }
+
+    # Same errors split by task: hidden context points (imputation) vs the future tail (forecast).
+    ctx = config.data.context_length
+    task_masks = {"imputation": target_mask.copy(), "forecast": target_mask.copy()}
+    task_masks["imputation"][:, ctx:, :] = 0
+    task_masks["forecast"][:, :ctx, :] = 0
+    results["physical_units_by_task"] = {}
+    for task, tmask in task_masks.items():
+        results["physical_units_by_task"][task] = {}
+        for method, chunks in all_pred.items():
+            pred_phys = normalizer.inverse_transform(np.concatenate(chunks, axis=0))
+            results["physical_units_by_task"][task][method] = {
+                ch: {"mae": mae(pred_phys[..., i], true_phys[..., i], tmask[..., i])}
+                for i, ch in enumerate(config.data.channels)
+            }
+        results["physical_units_by_task"][task]["diffusion_coverage_90"] = prediction_interval_coverage(
+            diffusion_samples, true, tmask, config.evaluation.prediction_interval
+        )
 
     # Physiological validity check on the diffusion model's denormalized output.
     diffusion_pred_denorm = normalizer.inverse_transform(np.concatenate(all_pred["diffusion"], axis=0))

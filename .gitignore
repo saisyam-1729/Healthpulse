@@ -36,3 +36,7 @@ __pycache__/
 ai_service/checkpoints/
 ai_service/checkpoints_dev/
 *.pt
+
+# Downloaded datasets (never commit)
+ai_service/data/raw/
+ai_service/checkpoints_noneeg_*/

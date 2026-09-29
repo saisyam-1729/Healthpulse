@@ -24,6 +24,9 @@ class DataConfig:
     context_length: int
     prediction_length: int
     synthetic: dict
+    # 'synthetic' (generator) or 'noneeg' (PhysioNet Non-EEG, see diffusion/data/noneeg.py)
+    source: str = "synthetic"
+    real: Optional[dict] = None
 
 
 @dataclasses.dataclass

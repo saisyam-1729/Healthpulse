@@ -1,0 +1,60 @@
+# Fine-tuning / evaluation on the PhysioNet Non-EEG dataset (real data, 20 healthy subjects).
+# Model shape must match the synthetic checkpoint (configs/diffusion.yaml) to fine-tune from it.
+# Split is by SUBJECT (12 train / 4 val / 4 test), never by window.
+
+data:
+  channels: [heartRate, spo2, temperature]
+  context_length: 24
+  prediction_length: 6
+  source: noneeg
+  real:
+    data_dir: data/raw/noneeg      # relative to ai_service/; gitignored
+    step_seconds: 5
+  synthetic: {}
+
+split:
+  train_frac: 0.6
+  val_frac: 0.2
+  test_frac: 0.2
+  seed: 1234
+
+model:
+  name: csdi_lite
+  hidden_dim: 64
+  time_embed_dim: 32
+  feature_embed_dim: 16
+  num_layers: 4
+  num_heads: 4
+  dropout: 0.1
+  diffusion_steps: 50
+  beta_start: 0.0001
+  beta_end: 0.5
+  schedule: quad
+  use_fourier_loss: true
+  fourier_loss_weight: 0.05
+
+training:
+  seed: 42
+  batch_size: 32
+  epochs: 30
+  learning_rate: 0.0003
+  lr_scheduler: cosine
+  warmup_epochs: 0
+  grad_clip_norm: 1.0
+  early_stopping_patience: 8
+  mixed_precision: false
+  checkpoint_dir: checkpoints_noneeg_finetune
+  resume_from: null
+  device: auto
+  num_workers: 0
+
+inference:
+  num_samples: 10
+  sampling_steps: 25
+  batch_size: 16
+  timeout_seconds: 10
+  device: auto
+
+evaluation:
+  artificial_mask_ratio: 0.2
+  prediction_interval: 0.9

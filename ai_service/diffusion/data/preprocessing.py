@@ -132,6 +132,8 @@ class WindowDataset(Dataset):
         stride: int = 1,
         deterministic: bool = False,
         seed: int = 0,
+        mask_strategy: str = "random",
+        burst_length_range: tuple = (3, 8),
     ):
         raw_values, raw_mask = make_windows(dataset, context_length, prediction_length, stride)
         filled = np.nan_to_num(raw_values, nan=0.0)
@@ -142,6 +144,10 @@ class WindowDataset(Dataset):
         self.artificial_mask_ratio = artificial_mask_ratio
         self.deterministic = deterministic
         self.seed = seed
+        if mask_strategy not in ("random", "burst"):
+            raise ValueError(f"unknown mask_strategy '{mask_strategy}'")
+        self.mask_strategy = mask_strategy
+        self.burst_length_range = burst_length_range
 
     def __len__(self) -> int:
         return self.values.shape[0]
@@ -159,9 +165,17 @@ class WindowDataset(Dataset):
         # Imputation self-supervision: randomly hide a fraction of the
         # observed context points too, so the model learns to reconstruct
         # from partial context exactly like it will see at inference.
-        holdout = (rng.random((self.context_length, C)) < self.artificial_mask_ratio) & (
-            mask[: self.context_length] == 1.0
-        )
+        if self.mask_strategy == "random":
+            holdout = rng.random((self.context_length, C)) < self.artificial_mask_ratio
+        else:
+            # "burst": one contiguous run of steps hidden on ALL channels at once, like a finger
+            # lifted off the sensor. Kept inside the context so both sides stay observed.
+            lo, hi = self.burst_length_range
+            length = int(rng.integers(lo, min(hi, self.context_length - 2) + 1))
+            start = int(rng.integers(1, self.context_length - length))
+            holdout = np.zeros((self.context_length, C), dtype=bool)
+            holdout[start : start + length, :] = True
+        holdout &= mask[: self.context_length] == 1.0
         cond_mask[: self.context_length][holdout] = 0.0
 
         target_mask = mask - cond_mask  # only originally-observed points that are hidden from conditioning
