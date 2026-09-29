@@ -9,6 +9,16 @@ from utils import check_emergency, get_prakriti_assessment, get_nearby_hospitals
 app = Flask(__name__)
 CORS(app)
 
+# Diffusion component (see docs/MODEL_SELECTION.md): isolated subpackage,
+# own dependencies (PyTorch). Imported defensively so that if PyTorch isn't
+# installed in a given deployment, the EXISTING scikit-learn endpoints above
+# keep working unaffected (brief item 31: do not break existing functionality).
+try:
+    from diffusion.api.routes import diffusion_bp
+    app.register_blueprint(diffusion_bp)
+except Exception as e:
+    print(f"Diffusion component not available: {e}. /api/diffusion/* routes will not be registered.")
+
 # Load Models
 MODEL_DIR = os.path.join(os.path.dirname(__file__), 'models')
 try:
