@@ -20,6 +20,8 @@ diffusion_bp = Blueprint("diffusion", __name__, url_prefix="/api/diffusion")
 MAX_READINGS = 500
 MAX_GENERATE_LENGTH = 200
 MAX_PREDICTION_LENGTH = 60
+MAX_NUM_SAMPLES = 100
+MAX_SAMPLING_STEPS = 1000
 
 
 def _validate_readings(readings) -> tuple[bool, str]:
@@ -39,6 +41,19 @@ def _validate_readings(readings) -> tuple[bool, str]:
     return True, ""
 
 
+def _sampling_options(body) -> tuple[dict, str]:
+    """Validate optional numSamples / samplingSteps; returns (kwargs, error)."""
+    opts = {}
+    for key, out, limit in (("numSamples", "num_samples", MAX_NUM_SAMPLES), ("samplingSteps", "sampling_steps", MAX_SAMPLING_STEPS)):
+        value = body.get(key)
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, int) or not (0 < value <= limit):
+            return {}, f"'{key}' must be an int in (0, {limit}]"
+        opts[out] = value
+    return opts, ""
+
+
 def _array_to_readings(arr, channels=CHANNEL_ORDER) -> list[dict]:
     return [{ch: float(row[c]) for c, ch in enumerate(channels)} for row in arr]
 
@@ -56,9 +71,13 @@ def impute():
     if not ok:
         return jsonify({"error": err}), 400
 
+    opts, err = _sampling_options(body)
+    if err:
+        return jsonify({"error": err}), 400
+
     service = get_service()
     try:
-        result = service.impute(readings, num_samples=body.get("numSamples"))
+        result = service.impute(readings, **opts)
     except ModelNotLoadedError as exc:
         return jsonify({"error": str(exc)}), 503
     except Exception as exc:  # noqa: BLE001
@@ -92,23 +111,33 @@ def forecast():
     if not isinstance(prediction_length, int) or not (0 < prediction_length <= MAX_PREDICTION_LENGTH):
         return jsonify({"error": f"'predictionLength' must be an int in (0, {MAX_PREDICTION_LENGTH}]"}), 400
 
+    opts, err = _sampling_options(body)
+    if err:
+        return jsonify({"error": err}), 400
+
     service = get_service()
     try:
-        result = service.forecast(readings, prediction_length, num_samples=body.get("numSamples"))
+        result = service.forecast(readings, prediction_length, **opts)
     except ModelNotLoadedError as exc:
         return jsonify({"error": str(exc)}), 503
     except Exception as exc:  # noqa: BLE001
         return jsonify({"error": f"inference failed: {exc}"}), 500
 
-    return jsonify(
-        {
-            "forecast": _array_to_readings(result["mean"], result["channels"]),
-            "lower": _array_to_readings(result["lower"], result["channels"]),
-            "upper": _array_to_readings(result["upper"], result["channels"]),
-            "channels": result["channels"],
-            "validity": result["validity"],
+    payload = {
+        "forecast": _array_to_readings(result["mean"], result["channels"]),
+        "lower": _array_to_readings(result["lower"], result["channels"]),
+        "upper": _array_to_readings(result["upper"], result["channels"]),
+        "channels": result["channels"],
+        "validity": result["validity"],
+    }
+    if body.get("includeContext") is True:
+        ctx = result["context"]
+        payload["context"] = {
+            "imputed": _array_to_readings(ctx["mean"], result["channels"]),
+            "lower": _array_to_readings(ctx["lower"], result["channels"]),
+            "upper": _array_to_readings(ctx["upper"], result["channels"]),
         }
-    )
+    return jsonify(payload)
 
 
 @diffusion_bp.route("/generate", methods=["POST"])

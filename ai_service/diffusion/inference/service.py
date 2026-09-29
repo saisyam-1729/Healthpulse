@@ -88,16 +88,19 @@ class DiffusionInferenceService:
                     mask[i, c] = 1.0
         return values, mask
 
-    def impute(self, readings: list[dict], num_samples: Optional[int] = None) -> dict:
+    def impute(self, readings: list[dict], num_samples: Optional[int] = None, sampling_steps: Optional[int] = None) -> dict:
         """PRIMARY task: fill missing values in an observed window with a
         probabilistic estimate (mean + interval), leaving observed values
         untouched.
         """
         model = self._require_model()
         values, mask = self._readings_to_arrays(readings)
-        return self._run(model, values, mask, num_samples)
+        return self._run(model, values, mask, num_samples, sampling_steps=sampling_steps)
 
-    def forecast(self, readings: list[dict], prediction_length: int, num_samples: Optional[int] = None) -> dict:
+    def forecast(
+        self, readings: list[dict], prediction_length: int,
+        num_samples: Optional[int] = None, sampling_steps: Optional[int] = None,
+    ) -> dict:
         """SECONDARY task: extend an observed context window forward.
 
         Implemented as imputation where the future `prediction_length`
@@ -112,8 +115,11 @@ class DiffusionInferenceService:
         pad_mask = np.zeros((prediction_length, values.shape[1]), dtype=np.float32)
         values = np.concatenate([values, pad_values], axis=0)
         mask = np.concatenate([mask, pad_mask], axis=0)
-        result = self._run(model, values, mask, num_samples)
+        result = self._run(model, values, mask, num_samples, sampling_steps=sampling_steps)
         context_len = len(readings)
+        # The same reverse-diffusion run also reconstructs the observed context (gaps filled,
+        # observed values echoed back), so callers can get imputation and forecast in one pass.
+        result["context"] = {key: result[key][:context_len] for key in ("mean", "lower", "upper")}
         for key in ("mean", "lower", "upper"):
             result[key] = result[key][context_len:]
         return result
@@ -154,6 +160,7 @@ class DiffusionInferenceService:
         mask: np.ndarray,
         num_samples: Optional[int],
         leave_one_out_scoring: bool = False,
+        sampling_steps: Optional[int] = None,
     ) -> dict:
         device = self._device
         normalized = model.normalizer.transform(values)
@@ -173,7 +180,7 @@ class DiffusionInferenceService:
         if leave_one_out_scoring:
             cond_mask = torch.zeros_like(cond_mask)
 
-        samples = model.sample(x0, cond_mask, num_samples=num_samples)  # (S, 1, L, C)
+        samples = model.sample(x0, cond_mask, num_samples=num_samples, sampling_steps=sampling_steps)  # (S, 1, L, C)
         samples_np = samples.squeeze(1).cpu().numpy()  # (S, L, C)
         samples_denorm = np.stack([model.normalizer.inverse_transform(s) for s in samples_np], axis=0)
 

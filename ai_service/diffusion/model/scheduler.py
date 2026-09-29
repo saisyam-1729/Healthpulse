@@ -126,22 +126,25 @@ class GaussianDiffusion:
 
         for _ in range(num_samples):
             current = torch.randn(B, L, C, device=x0_known.device)
-            for t in timesteps:
+            for k, t in enumerate(timesteps):
                 t_batch = torch.full((B,), t, device=x0_known.device, dtype=torch.long)
                 noisy_input = current * (1 - cond_mask)
                 eps_pred = denoiser(noisy_input, cond_value, t_batch)
 
-                alpha_t = self.alphas[t]
+                # Respaced reverse step (Nichol & Dhariwal 2021): when steps are skipped, use the
+                # effective per-jump alpha = alpha_bar_t / alpha_bar_prev, not the single-step
+                # alpha_t. With stride 1 this reduces exactly to the standard DDPM update.
+                is_last = k == len(timesteps) - 1
                 alpha_bar_t = self.alpha_bars[t]
-                beta_t = self.betas[t]
+                alpha_bar_prev = torch.ones_like(alpha_bar_t) if is_last else self.alpha_bars[timesteps[k + 1]]
+                alpha_eff = alpha_bar_t / alpha_bar_prev
+                beta_eff = 1.0 - alpha_eff
 
-                mean = (1.0 / alpha_t.sqrt()) * (
-                    current - (beta_t / (1 - alpha_bar_t).sqrt()) * eps_pred
+                mean = (1.0 / alpha_eff.sqrt()) * (
+                    current - (beta_eff / (1 - alpha_bar_t).sqrt()) * eps_pred
                 )
-                if t > 0:
-                    noise = torch.randn_like(current)
-                    sigma = beta_t.sqrt()
-                    current = mean + sigma * noise
+                if not is_last:
+                    current = mean + beta_eff.sqrt() * torch.randn_like(current)
                 else:
                     current = mean
 

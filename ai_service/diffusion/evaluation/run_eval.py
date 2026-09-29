@@ -58,9 +58,15 @@ def main():
         help="Randomly subsample the test split to this many windows (turnaround-time control for CPU runs). "
              "The actual count used is always reported in the output JSON.",
     )
+    parser.add_argument("--num-samples", type=int, default=None, help="override inference.num_samples")
+    parser.add_argument("--sampling-steps", type=int, default=None, help="override inference.sampling_steps")
     args = parser.parse_args()
 
     config = load_config(args.config)
+    if args.num_samples is not None:
+        config.inference.num_samples = args.num_samples
+    if args.sampling_steps is not None:
+        config.inference.sampling_steps = args.sampling_steps
     set_seed(config.training.seed)
     device = resolve_device(config.training.device)
 
@@ -127,6 +133,7 @@ def main():
     diffusion_samples = np.concatenate(all_diffusion_samples, axis=1)  # (S, N, L, C)
 
     results = {"num_test_windows": int(true.shape[0]), "context_length": config.data.context_length,
+               "inference_num_samples": config.inference.num_samples, "inference_sampling_steps": config.inference.sampling_steps,
                "prediction_length": config.data.prediction_length}
     for method, chunks in all_pred.items():
         pred = np.concatenate(chunks, axis=0)

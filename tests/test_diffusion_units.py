@@ -213,3 +213,114 @@ def test_valid_request_without_model_returns_503(client_no_model):
 
 def test_health_reports_model_not_loaded(client_no_model):
     assert client_no_model.get("/api/diffusion/health").get_json() == {"modelLoaded": False}
+
+
+# ---------- single-pass forecast + context, sampling options ----------
+
+@pytest.mark.parametrize("extra", [{"numSamples": 0}, {"numSamples": 101}, {"numSamples": "3"}, {"samplingSteps": 0}, {"samplingSteps": True}, {"samplingSteps": 5000}])
+def test_invalid_sampling_options_return_400(client_no_model, extra):
+    body = {"readings": [{"heartRate": 70, "spo2": 98, "temperature": 36.6}], "predictionLength": 2, **extra}
+    assert client_no_model.post("/api/diffusion/forecast", json=body).status_code == 400
+    assert client_no_model.post("/api/diffusion/impute", json={"readings": body["readings"], **extra}).status_code == 400
+
+
+@pytest.fixture(scope="module")
+def tiny_client(tmp_path_factory):
+    from flask import Flask
+    from smoke_test_diffusion import _tiny_config
+    from diffusion.api.routes import diffusion_bp
+    from diffusion.inference import service as svc
+    from diffusion.model.csdi import DiffusionModel
+
+    directory = tmp_path_factory.mktemp("tiny")
+    data = generate_synthetic_dataset(num_sequences=6, sequence_length=16, seed=1)
+    normalizer = Normalizer.fit(data.values, data.mask)
+    model = DiffusionModel(_tiny_config(str(directory)), normalizer, torch.device("cpu"))
+    ckpt = str(directory / "tiny.pt")
+    model.save_checkpoint(ckpt)
+
+    original = svc._service_instance
+    service = svc.DiffusionInferenceService(checkpoint_path=ckpt)
+    assert service.load()
+    svc._service_instance = service
+    app = Flask(__name__)
+    app.register_blueprint(diffusion_bp)
+    yield app.test_client()
+    svc._service_instance = original
+
+
+def _window(n, gap=()):
+    return [
+        {"heartRate": None if i in gap else 70.0 + i, "spo2": None if i in gap else 98.0, "temperature": None if i in gap else 36.6}
+        for i in range(n)
+    ]
+
+
+def test_forecast_can_return_context_in_one_pass(tiny_client):
+    readings = _window(8, gap=(3, 4))
+    body = {"readings": readings, "predictionLength": 3, "numSamples": 2, "samplingSteps": 5, "includeContext": True}
+    res = tiny_client.post("/api/diffusion/forecast", json=body)
+    assert res.status_code == 200, res.get_data(as_text=True)
+    data = res.get_json()
+    assert len(data["forecast"]) == len(data["lower"]) == len(data["upper"]) == 3
+    ctx = data["context"]
+    assert len(ctx["imputed"]) == len(ctx["lower"]) == len(ctx["upper"]) == 8
+    assert ctx["imputed"][0]["heartRate"] == pytest.approx(70.0, abs=1e-3)   # observed values echoed back unchanged
+    assert ctx["imputed"][3]["heartRate"] is not None                          # gap was filled
+    assert np.isfinite(ctx["imputed"][3]["heartRate"])
+
+
+def test_forecast_omits_context_unless_requested(tiny_client):
+    body = {"readings": _window(6), "predictionLength": 2, "numSamples": 2, "samplingSteps": 5}
+    assert "context" not in tiny_client.post("/api/diffusion/forecast", json=body).get_json()
+
+
+# ---------- respaced (strided) sampling ----------
+
+def _reference_ddpm_sample(d, net, x0, cond, seed):
+    """Textbook one-step-at-a-time DDPM ancestral sampler, written independently of scheduler.sample."""
+    torch.manual_seed(seed)
+    cond_value = x0 * cond
+    cur = torch.randn_like(x0)
+    for t in range(d.T - 1, -1, -1):
+        eps = net(cur * (1 - cond), cond_value, torch.full((x0.shape[0],), t, dtype=torch.long))
+        mean = (cur - d.betas[t] / (1 - d.alpha_bars[t]).sqrt() * eps) / d.alphas[t].sqrt()
+        cur = mean + d.betas[t].sqrt() * torch.randn_like(cur) if t > 0 else mean
+        cur = cur * (1 - cond) + cond_value
+    return cur
+
+
+def test_full_step_sampling_matches_textbook_ddpm():
+    d, net = _diffusion(), _denoiser()
+    x0 = torch.randn(2, 7, C)
+    cond = (torch.rand(2, 7, C) > 0.5).float()
+    torch.manual_seed(5)
+    ours = d.sample(net, x0, cond, num_samples=1, sampling_steps=d.T)[0]
+    assert torch.allclose(ours, _reference_ddpm_sample(d, net, x0, cond, seed=5), atol=1e-5)
+
+
+@pytest.mark.parametrize("steps", [2, 5, 10])
+def test_strided_sampling_is_finite_and_keeps_observed_values(steps):
+    d, net = _diffusion(20), _denoiser()
+    x0 = torch.randn(2, 7, C)
+    cond = (torch.rand(2, 7, C) > 0.5).float()
+    out = d.sample(net, x0, cond, num_samples=2, sampling_steps=steps)
+    assert out.shape == (2, 2, 7, C) and torch.all(torch.isfinite(out))
+    assert torch.allclose(out[0] * cond, x0 * cond, atol=1e-6)
+
+
+def test_last_reverse_step_adds_no_noise(monkeypatch):
+    d, net = _diffusion(20), _denoiser()
+    calls = {"n": 0}
+    real = torch.randn_like
+
+    def counting(*args, **kwargs):
+        calls["n"] += 1
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(torch, "randn_like", counting)
+    x0, cond = torch.zeros(1, 7, C), torch.zeros(1, 7, C)
+    for steps in (20, 5):
+        calls["n"] = 0
+        d.sample(net, x0, cond, num_samples=1, sampling_steps=steps)
+        assert calls["n"] == steps - 1  # noise is injected between steps, never after the final one
