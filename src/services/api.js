@@ -44,7 +44,7 @@ api.interceptors.response.use(
     const url = error.config?.url;
     const message = error.response?.data?.error || error.response?.data?.message || error.message;
     console.error(`[API Error] ${method} ${url}:`, message);
-    return Promise.reject(new Error(message));
+    return Promise.reject(Object.assign(new Error(message), { status: error.response?.status }));
   }
 );
 

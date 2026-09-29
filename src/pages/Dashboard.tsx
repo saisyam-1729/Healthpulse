@@ -22,6 +22,7 @@ import HumanBodyView from "@/components/dashboard/HumanBodyView";
 import VitalsPanel from "@/components/dashboard/VitalsPanel";
 import AIInsightsPanel from "@/components/dashboard/AIInsightsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
+import ForecastPanel from "@/components/dashboard/ForecastPanel";
 import { motion } from "framer-motion";
 
 interface HealthReading {
@@ -462,6 +463,11 @@ export default function Dashboard() {
             {/* ── BOTTOM: Analytics Console ──────────────────── */}
             <div className="w-full">
               <AnalyticsPanel chartData={chartData} />
+            </div>
+
+            {/* ── Research: model-generated gap-fill & forecast ─ */}
+            <div className="w-full">
+              <ForecastPanel />
             </div>
 
             {/* ── FEEDBACK ───────────────────────────────────── */}
