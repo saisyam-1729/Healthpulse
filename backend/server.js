@@ -96,6 +96,7 @@ app.use("/api/onboarding", onboardingRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api/diffusion", require("./routes/diffusionRoutes"));
 app.use("/api", doctorAiRoutes); // Mount at /api so router.post('/doctor-ai') works
 app.use("/api/reports", reportRoutes);
 app.use("/api/dermatology", dermatologyRoutes);
