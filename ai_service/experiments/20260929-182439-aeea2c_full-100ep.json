@@ -1,0 +1,138 @@
+{
+  "experiment_id": "20260929-182439-aeea2c",
+  "name": "full-100ep",
+  "recorded_at_utc": "2026-09-29T18:24:39.760716+00:00",
+  "git_commit": "96970e1a8916d6af419a7ab37a69951ce7dadd1d",
+  "git_dirty": true,
+  "dataset": {
+    "kind": "synthetic (ai_service/diffusion/data/synthetic.py) - NOT real patient data",
+    "generator_settings": {
+      "num_sequences": 400,
+      "sequence_length": 60,
+      "sampling_interval_seconds": 5,
+      "missing_prob": 0.1,
+      "gap_prob": 0.05,
+      "gap_length_range": [
+        3,
+        8
+      ],
+      "seed": 1234
+    },
+    "split": {
+      "train_frac": 0.7,
+      "val_frac": 0.15,
+      "test_frac": 0.15,
+      "seed": 1234
+    },
+    "channels": [
+      "heartRate",
+      "spo2",
+      "temperature"
+    ],
+    "context_length": 24,
+    "prediction_length": 6
+  },
+  "model_config": {
+    "name": "csdi_lite",
+    "hidden_dim": 64,
+    "time_embed_dim": 32,
+    "feature_embed_dim": 16,
+    "num_layers": 4,
+    "num_heads": 4,
+    "dropout": 0.1,
+    "diffusion_steps": 50,
+    "beta_start": 0.0001,
+    "beta_end": 0.5,
+    "schedule": "quad",
+    "use_fourier_loss": true,
+    "fourier_loss_weight": 0.05
+  },
+  "hyperparameters": {
+    "seed": 42,
+    "batch_size": 32,
+    "epochs": 100,
+    "learning_rate": 0.001,
+    "lr_scheduler": "cosine",
+    "warmup_epochs": 5,
+    "grad_clip_norm": 1.0,
+    "early_stopping_patience": 15,
+    "mixed_precision": false,
+    "checkpoint_dir": "checkpoints",
+    "resume_from": null,
+    "device": "auto",
+    "num_workers": 0
+  },
+  "inference_config": {
+    "num_samples": 20,
+    "sampling_steps": 50,
+    "batch_size": 16,
+    "timeout_seconds": 10,
+    "device": "auto"
+  },
+  "random_seed": 42,
+  "training": {
+    "epochs_run": 100,
+    "best_epoch": 88,
+    "best_val_loss": 0.24646457549879106,
+    "final_train_loss": 0.24962833496358464,
+    "final_val_loss": 0.2590868567763749,
+    "total_train_seconds": 17885.6
+  },
+  "test_metrics": {
+    "num_test_windows": 300,
+    "context_length": 24,
+    "prediction_length": 6,
+    "diffusion": {
+      "mae": 0.268282949924469,
+      "rmse": 0.33651190996170044,
+      "mape": 90.01248931884766,
+      "smape": 50.571292877197266,
+      "crps": 0.19430496760433894,
+      "coverage_90": 0.8241965973534972
+    },
+    "persistence": {
+      "mae": 0.3169977068901062,
+      "rmse": 0.4034147262573242,
+      "mape": 113.30741882324219,
+      "smape": 54.92967987060547
+    },
+    "linear_interpolation": {
+      "mae": 0.30155232548713684,
+      "rmse": 0.387668251991272,
+      "mape": 106.93885040283203,
+      "smape": 53.16376495361328
+    },
+    "mean": {
+      "mae": 0.9080538153648376,
+      "rmse": 1.0704649686813354,
+      "mape": 99.9974594116211,
+      "smape": 199.98291015625
+    },
+    "attention_imputer": {
+      "mae": 0.26916104555130005,
+      "rmse": 0.3371812105178833,
+      "mape": 95.6686019897461,
+      "smape": 49.721534729003906
+    },
+    "diffusion_physiological_validity": {
+      "heartRate": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.0
+      },
+      "spo2": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.0
+      },
+      "temperature": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.0
+      }
+    }
+  },
+  "checkpoint": {
+    "path": "checkpoints\\best.pt",
+    "sha256": "6e13b115be67cd81fd151569b1eee454c9685b6ff550b9d488af7458357ac7ec"
+  },
+  "config_file": "configs/diffusion.yaml",
+  "notes": "Backfilled after the fact. Same caveat on git_commit. Eval: 300-window test subsample, 50 sampling steps, 20 samples."
+}
