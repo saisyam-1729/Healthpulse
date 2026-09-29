@@ -58,8 +58,10 @@ test.beforeEach(() => {
     body: (url, body) => {
       const n = (body.readings || []).length;
       const est = (count) => Array.from({ length: count }, () => ({ heartRate: 75, spo2: 98, temperature: 36.6 }));
-      if (url.endsWith('/impute')) return { imputed: est(n), lower: est(n), upper: est(n) };
-      if (url.endsWith('/forecast')) return { forecast: est(body.predictionLength), lower: est(body.predictionLength), upper: est(body.predictionLength) };
+      if (url.endsWith('/forecast')) {
+        const p = body.predictionLength;
+        return { forecast: est(p), lower: est(p), upper: est(p), context: { imputed: est(n), lower: est(n), upper: est(n) } };
+      }
       if (url.endsWith('/generate')) return { sequence: est(body.length) };
       return { modelLoaded: true };
     },
@@ -100,10 +102,14 @@ test('happy path returns a labelled, gap-aware payload', async () => {
   assert.strictEqual(body.stale, true);
   assert.ok(body.context.observed.includes(false), 'gaps should be flagged as not observed');
 
-  const impute = upstreamCalls.find((c) => c.url.endsWith('/impute'));
-  assert.ok(impute.body.readings.some((r) => r.heartRate === null), 'gaps are sent as nulls');
-  const forecast = upstreamCalls.find((c) => c.url.endsWith('/forecast'));
-  assert.strictEqual(forecast.body.predictionLength, 4);
+  assert.strictEqual(upstreamCalls.length, 1, 'a single model run serves both imputation and forecast');
+  const call = upstreamCalls[0];
+  assert.ok(call.url.endsWith('/forecast'));
+  assert.ok(call.body.readings.some((r) => r.heartRate === null), 'gaps are sent as nulls');
+  assert.strictEqual(call.body.predictionLength, 4);
+  assert.strictEqual(call.body.includeContext, true);
+  assert.strictEqual(call.body.numSamples, 10);
+  assert.strictEqual(call.body.samplingSteps, 25);
 });
 
 test('maps "model not loaded" from the Python service to 503 with its message', async () => {

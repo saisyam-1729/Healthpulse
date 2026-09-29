@@ -10,6 +10,9 @@ const router = express.Router();
 // Defaults mirror ai_service/configs/diffusion.yaml (context_length 24, 5 s sampling).
 const STEP_SECONDS = Number(process.env.DIFFUSION_STEP_SECONDS) || 5;
 const CONTEXT_POINTS = Number(process.env.DIFFUSION_CONTEXT_POINTS) || 24;
+// Sampling budget per request: fewer draws/steps than training-time evaluation, to keep latency usable.
+const numSamples = () => Number(process.env.DIFFUSION_NUM_SAMPLES) || 10;
+const samplingSteps = () => Number(process.env.DIFFUSION_SAMPLING_STEPS) || 25;
 const timeoutMs = () => Number(process.env.DIFFUSION_TIMEOUT_MS) || 30000;
 const MIN_OBSERVED_STEPS = 6;
 const MAX_PREDICTION_STEPS = 12;
@@ -75,11 +78,18 @@ router.get('/insights', async (req, res) => {
       });
     }
 
-    const http = { timeout: timeoutMs() };
-    const [imputed, forecast] = await Promise.all([
-      axios.post(`${serviceUrl()}/api/diffusion/impute`, { readings: grid.rows }, http),
-      axios.post(`${serviceUrl()}/api/diffusion/forecast`, { readings: grid.rows, predictionLength }, http),
-    ]);
+    // One model run returns both the gap-filled context and the forecast.
+    const { data } = await axios.post(
+      `${serviceUrl()}/api/diffusion/forecast`,
+      {
+        readings: grid.rows,
+        predictionLength,
+        includeContext: true,
+        numSamples: numSamples(),
+        samplingSteps: samplingSteps(),
+      },
+      { timeout: timeoutMs() },
+    );
 
     res.json({
       generated: true,
@@ -92,15 +102,15 @@ router.get('/insights', async (req, res) => {
         timestamps: grid.timestamps,
         observed: grid.rows.map((r) => r.heartRate !== null || r.spo2 !== null || r.temperature !== null),
         measured: grid.rows,
-        imputed: imputed.data.imputed,
-        lower: imputed.data.lower,
-        upper: imputed.data.upper,
+        imputed: data.context.imputed,
+        lower: data.context.lower,
+        upper: data.context.upper,
       },
       forecast: {
         timestamps: futureTimestamps(grid.anchor, predictionLength, STEP_SECONDS),
-        mean: forecast.data.forecast,
-        lower: forecast.data.lower,
-        upper: forecast.data.upper,
+        mean: data.forecast,
+        lower: data.lower,
+        upper: data.upper,
       },
     });
   } catch (err) {
