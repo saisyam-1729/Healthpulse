@@ -1,0 +1,247 @@
+{
+  "data_source": "noneeg",
+  "mask_strategy": "random",
+  "checkpoint": "checkpoints_noneeg_scratch/best.pt",
+  "test_sequences": 4,
+  "num_test_windows": 300,
+  "context_length": 24,
+  "inference_num_samples": 10,
+  "inference_sampling_steps": 25,
+  "prediction_length": 6,
+  "diffusion": {
+    "mae": 0.29051995277404785,
+    "rmse": 0.4922941327095032,
+    "mape": 181.39598083496094,
+    "smape": 59.74631881713867,
+    "crps": 0.2157032067819655,
+    "coverage_90": 0.8525760397268777
+  },
+  "persistence": {
+    "mae": 0.15791165828704834,
+    "rmse": 0.33193206787109375,
+    "mape": 175.99517822265625,
+    "smape": 33.71570587158203
+  },
+  "linear_interpolation": {
+    "mae": 0.14514145255088806,
+    "rmse": 0.31322550773620605,
+    "mape": 143.76612854003906,
+    "smape": 32.15843200683594
+  },
+  "mean": {
+    "mae": 0.7856535315513611,
+    "rmse": 1.0035094022750854,
+    "mape": 99.81584930419922,
+    "smape": 199.4434051513672
+  },
+  "attention_imputer": {
+    "mae": 0.2646310031414032,
+    "rmse": 0.42446497082710266,
+    "mape": 160.2041473388672,
+    "smape": 56.7711181640625
+  },
+  "physical_units": {
+    "diffusion": {
+      "heartRate": {
+        "mae": 5.474453449249268,
+        "rmse": 8.748129844665527
+      },
+      "spo2": {
+        "mae": 0.7173064351081848,
+        "rmse": 1.0926421880722046
+      },
+      "temperature": {
+        "mae": 0.1698228120803833,
+        "rmse": 0.23156625032424927
+      }
+    },
+    "persistence": {
+      "heartRate": {
+        "mae": 3.209703207015991,
+        "rmse": 5.802693843841553
+      },
+      "spo2": {
+        "mae": 0.4204331338405609,
+        "rmse": 0.7664095759391785
+      },
+      "temperature": {
+        "mae": 0.04095322638750076,
+        "rmse": 0.07139997184276581
+      }
+    },
+    "linear_interpolation": {
+      "heartRate": {
+        "mae": 2.906446695327759,
+        "rmse": 5.536644458770752
+      },
+      "spo2": {
+        "mae": 0.39364513754844666,
+        "rmse": 0.7158463597297668
+      },
+      "temperature": {
+        "mae": 0.036184441298246384,
+        "rmse": 0.06716626137495041
+      }
+    },
+    "mean": {
+      "heartRate": {
+        "mae": 12.818501472473145,
+        "rmse": 16.60495948791504
+      },
+      "spo2": {
+        "mae": 1.4167391061782837,
+        "rmse": 1.7495261430740356
+      },
+      "temperature": {
+        "mae": 1.1206698417663574,
+        "rmse": 1.4380687475204468
+      }
+    },
+    "attention_imputer": {
+      "heartRate": {
+        "mae": 4.597506046295166,
+        "rmse": 7.035327434539795
+      },
+      "spo2": {
+        "mae": 0.6615423560142517,
+        "rmse": 0.9894933104515076
+      },
+      "temperature": {
+        "mae": 0.18966509401798248,
+        "rmse": 0.24156664311885834
+      }
+    }
+  },
+  "physical_units_by_task": {
+    "imputation": {
+      "diffusion": {
+        "heartRate": {
+          "mae": 4.768619537353516
+        },
+        "spo2": {
+          "mae": 0.675561785697937
+        },
+        "temperature": {
+          "mae": 0.14265859127044678
+        }
+      },
+      "persistence": {
+        "heartRate": {
+          "mae": 2.1658458709716797
+        },
+        "spo2": {
+          "mae": 0.2851947247982025
+        },
+        "temperature": {
+          "mae": 0.025729374960064888
+        }
+      },
+      "linear_interpolation": {
+        "heartRate": {
+          "mae": 1.4853523969650269
+        },
+        "spo2": {
+          "mae": 0.22489842772483826
+        },
+        "temperature": {
+          "mae": 0.014740432612597942
+        }
+      },
+      "mean": {
+        "heartRate": {
+          "mae": 12.681400299072266
+        },
+        "spo2": {
+          "mae": 1.4401004314422607
+        },
+        "temperature": {
+          "mae": 1.1634656190872192
+        }
+      },
+      "attention_imputer": {
+        "heartRate": {
+          "mae": 4.055054664611816
+        },
+        "spo2": {
+          "mae": 0.656352162361145
+        },
+        "temperature": {
+          "mae": 0.13768558204174042
+        }
+      },
+      "diffusion_coverage_90": 0.8804500703234881
+    },
+    "forecast": {
+      "diffusion": {
+        "heartRate": {
+          "mae": 6.041865348815918
+        },
+        "spo2": {
+          "mae": 0.7506788372993469
+        },
+        "temperature": {
+          "mae": 0.19064870476722717
+        }
+      },
+      "persistence": {
+        "heartRate": {
+          "mae": 4.048848628997803
+        },
+        "spo2": {
+          "mae": 0.5285487771034241
+        },
+        "temperature": {
+          "mae": 0.05262485146522522
+        }
+      },
+      "linear_interpolation": {
+        "heartRate": {
+          "mae": 4.048848628997803
+        },
+        "spo2": {
+          "mae": 0.5285487771034241
+        },
+        "temperature": {
+          "mae": 0.05262485146522522
+        }
+      },
+      "mean": {
+        "heartRate": {
+          "mae": 12.928716659545898
+        },
+        "spo2": {
+          "mae": 1.3980631828308105
+        },
+        "temperature": {
+          "mae": 1.0878597497940063
+        }
+      },
+      "attention_imputer": {
+        "heartRate": {
+          "mae": 5.033576488494873
+        },
+        "spo2": {
+          "mae": 0.665691614151001
+        },
+        "temperature": {
+          "mae": 0.22951605916023254
+        }
+      },
+      "diffusion_coverage_90": 0.8305555555555556
+    }
+  },
+  "diffusion_physiological_validity": {
+    "heartRate": {
+      "out_of_range_fraction": 0.0,
+      "implausible_jump_fraction": 0.017126436781609196
+    },
+    "spo2": {
+      "out_of_range_fraction": 0.0,
+      "implausible_jump_fraction": 0.00011494252873563218
+    },
+    "temperature": {
+      "out_of_range_fraction": 0.2058888888888889,
+      "implausible_jump_fraction": 0.0003448275862068965
+    }
+  }
+}

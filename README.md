@@ -105,6 +105,23 @@ npm run test:backend                            # Node route/grid/trend tests
 npx vitest run                                  # frontend tests
 ```
 
+### Real-data evaluation (PhysioNet Non-EEG)
+
+```bash
+# download (4 MB, open access, ODC Attribution 1.0) into ai_service/data/raw/noneeg/
+cd ai_service/data/raw && wget -r -N -c -np -nH --cut-dirs=3 -P noneeg https://physionet.org/files/noneeg/1.0.0/
+cd ../..
+# zero-shot, fine-tune from the synthetic checkpoint, evaluate with burst gaps
+python -m diffusion.evaluation.run_eval --config configs/diffusion_noneeg.yaml --checkpoint checkpoints/best.pt --mask burst --max-test-windows 300
+python -m diffusion.training.train --config configs/diffusion_noneeg.yaml --init-from checkpoints/best.pt
+python -m diffusion.evaluation.run_eval --config configs/diffusion_noneeg.yaml --checkpoint checkpoints_noneeg_finetune/best.pt --mask burst --max-test-windows 300
+```
+
+Result in short: on 4 held-out real subjects, **linear interpolation is more
+accurate than the diffusion model** for every channel and gap length tested;
+fine-tuning makes the model's uncertainty well calibrated. Details in
+[IMPLEMENTATION_REPORT.md section 10b](docs/IMPLEMENTATION_REPORT.md).
+
 ### Limitations (see the full list in IMPLEMENTATION_REPORT.md)
 
 No real HealthPulse data was used or is available — all results are on

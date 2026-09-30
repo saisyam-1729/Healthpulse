@@ -62,6 +62,8 @@ def main():
     parser.add_argument("--sampling-steps", type=int, default=None, help="override inference.sampling_steps")
     parser.add_argument("--mask", choices=["random", "burst"], default="random",
                         help="how observed context points are hidden for imputation scoring")
+    parser.add_argument("--burst-min", type=int, default=3, help="shortest burst gap, in steps")
+    parser.add_argument("--burst-max", type=int, default=8, help="longest burst gap, in steps")
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -86,7 +88,8 @@ def main():
         artificial_mask_ratio=config.evaluation.artificial_mask_ratio,
     )
     train_ds = WindowDataset(train_seq, normalizer, deterministic=False, **common)
-    test_ds = WindowDataset(test_seq, normalizer, deterministic=True, seed=99, mask_strategy=args.mask, **common)
+    test_ds = WindowDataset(test_seq, normalizer, deterministic=True, seed=99, mask_strategy=args.mask,
+                           burst_length_range=(args.burst_min, args.burst_max), **common)
 
     if args.max_test_windows is not None and len(test_ds) > args.max_test_windows:
         rng = np.random.default_rng(123)
@@ -137,7 +140,7 @@ def main():
     target_mask = np.concatenate(all_target_mask, axis=0)
     diffusion_samples = np.concatenate(all_diffusion_samples, axis=1)  # (S, N, L, C)
 
-    results = {"data_source": config.data.source, "mask_strategy": args.mask, "checkpoint": args.checkpoint,
+    results = {"data_source": config.data.source, "mask_strategy": args.mask, "burst_length_steps": [args.burst_min, args.burst_max] if args.mask == "burst" else None, "checkpoint": args.checkpoint,
                "test_sequences": int(test_seq.values.shape[0]),
                "num_test_windows": int(true.shape[0]), "context_length": config.data.context_length,
                "inference_num_samples": config.inference.num_samples, "inference_sampling_steps": config.inference.sampling_steps,

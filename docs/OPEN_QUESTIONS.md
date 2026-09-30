@@ -47,3 +47,15 @@ unilaterally before implementation starts.
    confirmed dead code) be deleted as cleanup, or left alone?
 8. Is persisting `rmssd`/HRV to `HealthData` in scope for this project, or
    purely noted as future work?
+
+## Raised by the real-data evaluation (2026-09-30)
+
+9. **What should the forecast panel show?** On real data, linear
+   interpolation beats the diffusion model's point estimates, and the
+   currently served checkpoint is the synthetic-only one, which is clearly
+   worse. Options: switch to a real-data model and relabel, show the
+   interpolated value with the model's band, or hide the panel until the
+   model is validated on HealthPulse's own device data.
+10. **Is the backend's 30 degC temperature floor correct for the
+    DS18B20?** Real skin temperatures in the Non-EEG dataset are often
+    below 30 degC; readings like that are currently rejected at ingestion.

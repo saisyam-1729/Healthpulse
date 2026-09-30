@@ -325,10 +325,120 @@ making one model run return both the gap-filled context and the forecast
 (`includeContext`) and using 10 x 25, three requests took **1.4 s, 1.7 s and
 1.8 s**. These are single-machine timings, not a load test.
 
+## 10b. Real-data evaluation: PhysioNet Non-EEG dataset
+
+This is the project's first evaluation on real physiological data.
+
+**Data.** "Non-EEG Dataset for Assessment of Neurological Status" v1.0.0
+(PhysioNet, ODC Attribution 1.0, 4 MB, downloaded and checked against
+PhysioNet's SHA256 sums; kept in `ai_service/data/raw/noneeg/`, gitignored).
+20 healthy adults, about 38 minutes each, wrist-worn sensors, a protocol of
+relaxation and physical, cognitive and emotional stress. HR and SpO2 are
+recorded at 1 Hz and skin temperature at 8 Hz; `diffusion/data/noneeg.py`
+averages everything into the model's 5-second steps (454 steps per subject).
+Observed ranges: HR 48-134 bpm, SpO2 80-100 % (whole numbers), temperature
+25-36 degC. The recordings have **no missing values**, so all missingness in
+the evaluation is created by masks.
+
+**Protocol.** Split by subject: 12 train, 4 validation, 4 test; no subject
+appears in more than one split. 300 randomly chosen test windows (24 steps of
+context + 6 forecast steps), serving budget (10 samples x 25 steps). Two
+masks for the imputation part: `random` (20 % of observed context points) and
+`burst` (one contiguous run of 3-8 steps, 15-40 s, hidden on all channels at
+once, like a finger lifted off the sensor). Errors are in physical units and
+reported separately for imputation (hidden context points) and forecast (the
+6 future steps). Three diffusion models: the synthetic-only checkpoint used
+as-is (zero-shot); that checkpoint fine-tuned on the 12 training subjects
+(30 epochs, lr 3e-4); and the same architecture trained from scratch on the
+same subjects (30 epochs, lr 1e-3). Baselines are computed on the same
+windows; the attention imputer is trained on the same 12 subjects.
+
+**Results: imputation, mean absolute error** (lower is better; last column is
+the share of true values inside the diffusion model's 90 % interval):
+
+| Mask | Method | HR (bpm) | SpO2 (%) | Temp (degC) | 90 % coverage |
+|---|---|---|---|---|---|
+| random | diffusion, zero-shot | 5.87 | 0.70 | 5.08 | 33 % |
+| random | diffusion, fine-tuned | 2.78 | 0.45 | 0.047 | 90 % |
+| random | diffusion, from scratch | 4.77 | 0.68 | 0.143 | 88 % |
+| random | **linear interpolation** | **1.49** | **0.22** | **0.015** | - |
+| random | persistence | 2.17 | 0.29 | 0.026 | - |
+| random | attention imputer | 3.98 | 0.67 | 0.170 | - |
+| burst 15-40 s | diffusion, zero-shot | 6.01 | 0.67 | 5.12 | 31 % |
+| burst 15-40 s | diffusion, fine-tuned | 3.55 | 0.55 | 0.057 | 84 % |
+| burst 15-40 s | diffusion, from scratch | 5.00 | 0.66 | 0.141 | 87 % |
+| burst 15-40 s | **linear interpolation** | **2.69** | **0.40** | **0.022** | - |
+| burst 15-40 s | persistence | 3.97 | 0.55 | 0.058 | - |
+| burst 15-40 s | attention imputer | 4.60 | 0.63 | 0.135 | - |
+| burst 60-100 s | diffusion, fine-tuned | 5.62 | 0.80 | 0.265 | 68 % |
+| burst 60-100 s | **linear interpolation** | **3.81** | **0.57** | **0.035** | - |
+| burst 60-100 s | persistence | 5.93 | 0.75 | 0.142 | - |
+
+**Results: 30-second forecast, mean absolute error** (random-mask run; the
+burst run differs by at most 0.2 bpm):
+
+| Method | HR (bpm) | SpO2 (%) | Temp (degC) | 90 % coverage |
+|---|---|---|---|---|
+| diffusion, zero-shot | 7.50 | 0.81 | 5.05 | 28 % |
+| diffusion, fine-tuned | 4.90 | 0.62 | 0.079 | 83 % |
+| diffusion, from scratch | 6.04 | 0.75 | 0.191 | 83 % |
+| **last value (persistence = interpolation here)** | **4.05** | **0.53** | **0.053** | - |
+| attention imputer | 5.08 | 0.66 | 0.222 | - |
+
+Raw outputs: `ai_service/results_noneeg/*.json`.
+
+### What this shows, stated plainly
+
+1. **On this real data the diffusion model does not beat linear
+   interpolation, for any channel, task or gap length tested.** At 5-second
+   resolution these lab recordings are smooth, and a straight line between
+   the readings on either side of a gap is hard to beat, even for gaps of
+   60-100 s. For forecasting, "the next value equals the last value" wins.
+2. **The synthetic-only model is not usable on real data.** Zero-shot it is
+   the worst learned method, its temperature estimates are about 5 degC off
+   (it learned a ~36.6 degC prior; these wrist skin temperatures average
+   ~32 degC), and its 90 % intervals contain only about 30 % of true values.
+   **The dashboard panel currently serves this synthetic-only checkpoint.**
+3. **Synthetic pretraining helps a lot.** Fine-tuning from the synthetic
+   checkpoint gives lower error than training from scratch on every row (HR imputation error
+   2.78 vs 4.77 bpm), with the same data and epoch budget. Calibration is
+   similar for both (the scratch model is slightly better on burst gaps).
+4. **Fine-tuning fixes calibration.** Coverage goes from about 30 % to
+   83-90 % for gaps up to 40 s. It degrades for very long gaps (68 % at
+   60-100 s).
+5. The physiological-validity check flags about 21 % of fine-tuned
+   temperature outputs as "out of range". That is the check's 30 degC floor
+   (copied from the backend's ingestion rule) meeting real skin temperatures
+   below 30 degC, not a model failure.
+
+### Limits of this evaluation
+
+Only 4 test subjects (about 2.5 hours), all healthy adults in one lab
+protocol with a wrist device rather than the HealthPulse fingertip sensor;
+the data has no real dropouts, so gaps are simulated. Both diffusion training
+runs were still improving at the 30-epoch limit. One dataset cannot settle
+the question; it does rule out any claim that the current model is more
+accurate than interpolation.
+
+### Consequences
+
+- The diffusion model's case now rests on **calibrated uncertainty**, not
+  accuracy. If the product needs the best point estimate for a gap, linear
+  interpolation is the better tool on data like this.
+- Candidate designs for the owner to choose from (not implemented): show the
+  interpolated value as the estimate and use the model only for the
+  uncertainty band (needs its own calibration check); or keep the model only
+  where interpolation is impossible (a gap at the very end of the data).
+- Do not keep serving the synthetic-only checkpoint to real users; either
+  switch to a real-data model or label the panel accordingly.
+- The backend rejects temperatures below 30 degC (`deviceRoutes.js`). Real
+  skin temperature often sits below that, so if the fingertip DS18B20 reads
+  similarly the backend is discarding real readings.
+
 ## 11. Limitations
 
-1. **No real HealthPulse data exists or was used.** Every number above is
-   on synthetic data only — a good result here does not guarantee the
+1. **No real HealthPulse data exists or was used.** Real-data results come
+   from one public dataset (section 10b); everything else is synthetic — a good result here does not guarantee the
    same result on real physiological signals.
 2. **Point-estimate accuracy is statistically tied with a much simpler,
    non-diffusion attention baseline** at full training scale (MAE 0.268

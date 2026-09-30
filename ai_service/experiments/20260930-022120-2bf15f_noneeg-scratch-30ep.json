@@ -1,0 +1,323 @@
+{
+  "experiment_id": "20260930-022120-2bf15f",
+  "name": "noneeg-scratch-30ep",
+  "recorded_at_utc": "2026-09-30T02:21:20.766704+00:00",
+  "git_commit": "767033de7d0af090cb490e0ccc5be5dbd3e36691",
+  "git_dirty": true,
+  "dataset": {
+    "kind": "synthetic (ai_service/diffusion/data/synthetic.py) - NOT real patient data",
+    "generator_settings": {},
+    "split": {
+      "train_frac": 0.6,
+      "val_frac": 0.2,
+      "test_frac": 0.2,
+      "seed": 1234
+    },
+    "channels": [
+      "heartRate",
+      "spo2",
+      "temperature"
+    ],
+    "context_length": 24,
+    "prediction_length": 6
+  },
+  "model_config": {
+    "name": "csdi_lite",
+    "hidden_dim": 64,
+    "time_embed_dim": 32,
+    "feature_embed_dim": 16,
+    "num_layers": 4,
+    "num_heads": 4,
+    "dropout": 0.1,
+    "diffusion_steps": 50,
+    "beta_start": 0.0001,
+    "beta_end": 0.5,
+    "schedule": "quad",
+    "use_fourier_loss": true,
+    "fourier_loss_weight": 0.05
+  },
+  "hyperparameters": {
+    "seed": 42,
+    "batch_size": 32,
+    "epochs": 30,
+    "learning_rate": 0.001,
+    "lr_scheduler": "cosine",
+    "warmup_epochs": 0,
+    "grad_clip_norm": 1.0,
+    "early_stopping_patience": 8,
+    "mixed_precision": false,
+    "checkpoint_dir": "checkpoints_noneeg_scratch",
+    "resume_from": null,
+    "device": "auto",
+    "num_workers": 0
+  },
+  "inference_config": {
+    "num_samples": 10,
+    "sampling_steps": 25,
+    "batch_size": 16,
+    "timeout_seconds": 10,
+    "device": "auto"
+  },
+  "random_seed": 42,
+  "training": {
+    "epochs_run": 30,
+    "best_epoch": 29,
+    "best_val_loss": 0.2719769748272719,
+    "final_train_loss": 0.3131232178770006,
+    "final_val_loss": 0.2719769748272719,
+    "total_train_seconds": 16578.4
+  },
+  "test_metrics": {
+    "data_source": "noneeg",
+    "mask_strategy": "burst",
+    "checkpoint": "checkpoints_noneeg_scratch/best.pt",
+    "test_sequences": 4,
+    "num_test_windows": 300,
+    "context_length": 24,
+    "inference_num_samples": 10,
+    "inference_sampling_steps": 25,
+    "prediction_length": 6,
+    "diffusion": {
+      "mae": 0.2877490222454071,
+      "rmse": 0.4898220896720886,
+      "mape": 182.5269012451172,
+      "smape": 59.983001708984375,
+      "crps": 0.216217029303699,
+      "coverage_90": 0.8511279657720732
+    },
+    "persistence": {
+      "mae": 0.19611293077468872,
+      "rmse": 0.3967701494693756,
+      "mape": 193.91122436523438,
+      "smape": 40.108211517333984
+    },
+    "linear_interpolation": {
+      "mae": 0.16574963927268982,
+      "rmse": 0.3388841152191162,
+      "mape": 162.578125,
+      "smape": 36.18219757080078
+    },
+    "mean": {
+      "mae": 0.7831408977508545,
+      "rmse": 1.0005143880844116,
+      "mape": 99.83246612548828,
+      "smape": 199.48239135742188
+    },
+    "attention_imputer": {
+      "mae": 0.2770075798034668,
+      "rmse": 0.4504293203353882,
+      "mape": 171.73924255371094,
+      "smape": 58.22983932495117
+    },
+    "physical_units": {
+      "diffusion": {
+        "heartRate": {
+          "mae": 5.555006504058838,
+          "rmse": 8.914520263671875
+        },
+        "spo2": {
+          "mae": 0.7017161250114441,
+          "rmse": 1.0689760446548462
+        },
+        "temperature": {
+          "mae": 0.1669262796640396,
+          "rmse": 0.22284097969532013
+        }
+      },
+      "persistence": {
+        "heartRate": {
+          "mae": 3.9399847984313965,
+          "rmse": 6.816644191741943
+        },
+        "spo2": {
+          "mae": 0.52951580286026,
+          "rmse": 0.9347161054611206
+        },
+        "temperature": {
+          "mae": 0.05446365103125572,
+          "rmse": 0.09238072484731674
+        }
+      },
+      "linear_interpolation": {
+        "heartRate": {
+          "mae": 3.332033157348633,
+          "rmse": 5.894486427307129
+        },
+        "spo2": {
+          "mae": 0.45747217535972595,
+          "rmse": 0.791610598564148
+        },
+        "temperature": {
+          "mae": 0.03746957704424858,
+          "rmse": 0.06576777249574661
+        }
+      },
+      "mean": {
+        "heartRate": {
+          "mae": 12.69931411743164,
+          "rmse": 16.482284545898438
+        },
+        "spo2": {
+          "mae": 1.418821096420288,
+          "rmse": 1.7477701902389526
+        },
+        "temperature": {
+          "mae": 1.1219521760940552,
+          "rmse": 1.4430334568023682
+        }
+      },
+      "attention_imputer": {
+        "heartRate": {
+          "mae": 5.06082820892334,
+          "rmse": 7.8374738693237305
+        },
+        "spo2": {
+          "mae": 0.6638519167900085,
+          "rmse": 1.01058030128479
+        },
+        "temperature": {
+          "mae": 0.20077668130397797,
+          "rmse": 0.26004931330680847
+        }
+      }
+    },
+    "physical_units_by_task": {
+      "imputation": {
+        "diffusion": {
+          "heartRate": {
+            "mae": 4.9989800453186035
+          },
+          "spo2": {
+            "mae": 0.6622832417488098
+          },
+          "temperature": {
+            "mae": 0.14142221212387085
+          }
+        },
+        "persistence": {
+          "heartRate": {
+            "mae": 3.966303825378418
+          },
+          "spo2": {
+            "mae": 0.5475372672080994
+          },
+          "temperature": {
+            "mae": 0.05787263810634613
+          }
+        },
+        "linear_interpolation": {
+          "heartRate": {
+            "mae": 2.6861703395843506
+          },
+          "spo2": {
+            "mae": 0.3958384692668915
+          },
+          "temperature": {
+            "mae": 0.0220890324562788
+          }
+        },
+        "mean": {
+          "heartRate": {
+            "mae": 12.445676803588867
+          },
+          "spo2": {
+            "mae": 1.4417724609375
+          },
+          "temperature": {
+            "mae": 1.1596466302871704
+          }
+        },
+        "attention_imputer": {
+          "heartRate": {
+            "mae": 4.8700056076049805
+          },
+          "spo2": {
+            "mae": 0.6591618657112122
+          },
+          "temperature": {
+            "mae": 0.1624511033296585
+          }
+        },
+        "diffusion_coverage_90": 0.8724406224406225
+      },
+      "forecast": {
+        "diffusion": {
+          "heartRate": {
+            "mae": 6.057900905609131
+          },
+          "spo2": {
+            "mae": 0.7373810410499573
+          },
+          "temperature": {
+            "mae": 0.18999329209327698
+          }
+        },
+        "persistence": {
+          "heartRate": {
+            "mae": 3.9161808490753174
+          },
+          "spo2": {
+            "mae": 0.5132164359092712
+          },
+          "temperature": {
+            "mae": 0.051380421966314316
+          }
+        },
+        "linear_interpolation": {
+          "heartRate": {
+            "mae": 3.9161808490753174
+          },
+          "spo2": {
+            "mae": 0.5132164359092712
+          },
+          "temperature": {
+            "mae": 0.051380421966314316
+          }
+        },
+        "mean": {
+          "heartRate": {
+            "mae": 12.928716659545898
+          },
+          "spo2": {
+            "mae": 1.3980631828308105
+          },
+          "temperature": {
+            "mae": 1.0878597497940063
+          }
+        },
+        "attention_imputer": {
+          "heartRate": {
+            "mae": 5.23341703414917
+          },
+          "spo2": {
+            "mae": 0.6680938005447388
+          },
+          "temperature": {
+            "mae": 0.23544004559516907
+          }
+        },
+        "diffusion_coverage_90": 0.8318518518518518
+      }
+    },
+    "diffusion_physiological_validity": {
+      "heartRate": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.007126436781609196
+      },
+      "spo2": {
+        "out_of_range_fraction": 0.0,
+        "implausible_jump_fraction": 0.0
+      },
+      "temperature": {
+        "out_of_range_fraction": 0.20677777777777778,
+        "implausible_jump_fraction": 0.00011494252873563218
+      }
+    }
+  },
+  "checkpoint": {
+    "path": "checkpoints_noneeg_scratch\\best.pt",
+    "sha256": "a2246dd9cf301f13a51d4f62a0897bf20ffcdd4677a2594178e555044f0ed3bd"
+  },
+  "config_file": "configs/diffusion_noneeg_scratch.yaml",
+  "notes": "Real data: PhysioNet Non-EEG, same split, trained from scratch (no synthetic pretraining), lr 1e-3. test_metrics = burst mask; random-mask results in results_noneeg/scratch_random.json. The first 22 epochs' timings include a ~4 h laptop sleep during epoch 22-23."
+}
