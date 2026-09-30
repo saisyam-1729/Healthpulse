@@ -81,3 +81,19 @@ describe("describeForecastError", () => {
     expect(describeForecastError({})).toBe("Could not generate a forecast.");
   });
 });
+
+import { isForecastPanelEnabled } from "./forecast";
+
+describe("isForecastPanelEnabled", () => {
+  it("is hidden for regular users by default", () => {
+    expect(isForecastPanelEnabled("user", undefined)).toBe(false);
+    expect(isForecastPanelEnabled(undefined, undefined)).toBe(false);
+  });
+  it("is visible to admins", () => {
+    expect(isForecastPanelEnabled("admin", undefined)).toBe(true);
+  });
+  it("can be switched on for everyone with the build flag", () => {
+    expect(isForecastPanelEnabled("user", "true")).toBe(true);
+    expect(isForecastPanelEnabled("user", "false")).toBe(false);
+  });
+});

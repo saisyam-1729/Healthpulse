@@ -23,6 +23,7 @@ import VitalsPanel from "@/components/dashboard/VitalsPanel";
 import AIInsightsPanel from "@/components/dashboard/AIInsightsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 import ForecastPanel from "@/components/dashboard/ForecastPanel";
+import { isForecastPanelEnabled } from "@/lib/forecast";
 import { motion } from "framer-motion";
 
 interface HealthReading {
@@ -96,7 +97,7 @@ export default function Dashboard() {
         deviceId: "ESP32-BLE-HEALTH",
         heartRate: data.heartRate,
         spo2: data.spo2,
-        temperature: data.temperature || 36.5,
+        temperature: data.temperature ?? null,
       }).catch(() => { });
     });
 
@@ -116,9 +117,9 @@ export default function Dashboard() {
       const response = await axios.get(`http://${savedIp}/data?key=ESP32_KEY`, { timeout: 2000 });
       const data = response.data;
       const newReading: HealthReading = {
-        heart_rate: data.heartRate,
-        spo2: data.spo2,
-        temperature: data.temperature || 36.5,
+        heart_rate: data.heartRate ?? 0,
+        spo2: data.spo2 ?? 0,
+        temperature: data.temperature ?? 0,
         timestamp: new Date().toISOString()
       };
 
@@ -133,7 +134,7 @@ export default function Dashboard() {
           deviceId: data.deviceId || "ESP32-LOCAL",
           heartRate: data.heartRate,
           spo2: data.spo2,
-          temperature: data.temperature || 36.5
+          temperature: data.temperature ?? null
         });
 
         // Check offline queue and flush
@@ -151,7 +152,7 @@ export default function Dashboard() {
           deviceId: data.deviceId || "ESP32-LOCAL",
           heartRate: data.heartRate,
           spo2: data.spo2,
-          temperature: data.temperature || 36.5,
+          temperature: data.temperature ?? null,
           timestamp: new Date().toISOString()
         });
         localStorage.setItem('healthpulse_offline_queue', JSON.stringify(offlineQueue));
@@ -466,9 +467,12 @@ export default function Dashboard() {
             </div>
 
             {/* ── Research: model-generated gap-fill & forecast ─ */}
-            <div className="w-full">
-              <ForecastPanel />
-            </div>
+            {/* Hidden for regular users until validated on HealthPulse device data (docs/OPEN_QUESTIONS.md #9). */}
+            {isForecastPanelEnabled(user?.role) && (
+              <div className="w-full">
+                <ForecastPanel />
+              </div>
+            )}
 
             {/* ── FEEDBACK ───────────────────────────────────── */}
             <ParallaxWrapper depth={0.02} className="w-full rounded-2xl p-4 md:p-8 relative overflow-hidden mb-12 bg-white/60 dark:bg-[#050816]/70 border border-cyan-500/10 shadow-[0_0_20px_rgba(0,229,255,0.04)] backdrop-blur-md">

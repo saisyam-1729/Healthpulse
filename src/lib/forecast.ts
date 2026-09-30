@@ -30,6 +30,18 @@ export interface DiffusionInsights {
   };
 }
 
+/**
+ * The forecast panel is off for regular users: on real data the model is not yet more
+ * accurate than interpolation. Visible to admins, or to everyone when
+ * VITE_ENABLE_FORECAST_PANEL=true is set at build time (for demos/research builds).
+ */
+export function isForecastPanelEnabled(
+  role?: string | null,
+  flag: string | undefined = import.meta.env.VITE_ENABLE_FORECAST_PANEL,
+): boolean {
+  return flag === "true" || role === "admin";
+}
+
 export const CHANNELS: Record<Channel, { label: string; unit: string; decimals: number }> = {
   heartRate: { label: "Heart rate", unit: "bpm", decimals: 0 },
   spo2: { label: "SpO2", unit: "%", decimals: 1 },
