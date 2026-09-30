@@ -13,7 +13,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:backend": "node --test backend/tests/healthEngine.trend.test.js backend/tests/diffusionGrid.test.js backend/tests/diffusionRoutes.test.js backend/tests/vitalsValidation.test.js backend/tests/deviceData.test.js"
+    "test:backend": "node --test backend/tests/healthEngine.trend.test.js backend/tests/diffusionGrid.test.js backend/tests/diffusionRoutes.test.js backend/tests/vitalsValidation.test.js backend/tests/deviceData.test.js backend/tests/security.test.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

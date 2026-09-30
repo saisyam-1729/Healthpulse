@@ -99,15 +99,24 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExportUsers = () => {
-    const token = localStorage.getItem('admin_token');
-    window.open(`${import.meta.env.VITE_API_URL}/admin/export/users?token=${token}`, '_blank');
+  // Downloads go through the authenticated API client; the token is never put in a URL.
+  const downloadCsv = async (path: string, filename: string) => {
+    try {
+      const blob = (await api.get(path, { responseType: "blob" })) as unknown as Blob;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({ title: "Export failed", description: (err as Error).message, variant: "destructive" });
+    }
   };
 
-  const handleExportFeedback = () => {
-    const token = localStorage.getItem('admin_token');
-    window.open(`${import.meta.env.VITE_API_URL}/admin/export/feedbacks?token=${token}`, '_blank');
-  };
+  const handleExportUsers = () => downloadCsv("/admin/export/users", "users.csv");
+
+  const handleExportFeedback = () => downloadCsv("/admin/export/feedbacks", "feedbacks.csv");
 
   const handleLogout = () => {
     localStorage.removeItem("admin_token");

@@ -2,10 +2,10 @@ const User = require('../models/User');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || "healthpulse_fallback_secret_2026_secure_default";
-if (!process.env.JWT_SECRET) {
-  console.warn('[WARNING] JWT_SECRET is missing in environment variables. Using fallback secret. THIS IS NOT RECOMMENDED FOR PRODUCTION.');
-}
+const { jwtSecret } = require('../config/jwtSecret');
+
+// Fields a user must never be able to set on their own account at signup.
+const PROTECTED_FIELDS = ['role', 'password', 'email', 'loginCount', 'lastLogin', '_id', 'createdAt', 'updatedAt'];
 
 exports.signup = async (req, res) => {
   try {
@@ -14,10 +14,12 @@ exports.signup = async (req, res) => {
     if (existingUser) return res.status(400).json({ error: 'Email already exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ email, password: hashedPassword, ...data });
+    const profile = { ...(data && typeof data === 'object' ? data : {}) };
+    PROTECTED_FIELDS.forEach((f) => delete profile[f]);
+    const newUser = new User({ ...profile, email, password: hashedPassword, role: 'user' });
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: newUser._id, email: newUser.email, role: 'user' }, jwtSecret(), { expiresIn: '7d' });
     res.status(201).json({ 
       session: { access_token: token },
       user: { id: newUser._id, email: newUser.email, user_metadata: data } 
@@ -31,21 +33,6 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Check for hardcoded admin login
-    if (email === 'admin' && password === 'admin@@@123') {
-       let adminUser = await User.findOne({ email: 'admin' });
-       if (!adminUser) {
-         adminUser = new User({ email: 'admin', password: await bcrypt.hash(password, 10), role: 'admin' });
-         await adminUser.save();
-       }
-       const token = jwt.sign({ id: adminUser._id, role: 'admin' }, JWT_SECRET, { expiresIn: '7d' });
-       return res.json({
-         session: { access_token: token },
-         user: { id: adminUser._id, email: 'admin', role: 'admin', user_metadata: { name: 'Admin' } },
-         onboarding_completed: true
-       });
-    }
-
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
@@ -57,7 +44,7 @@ exports.login = async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    const token = jwt.sign({ id: user._id, role: user.role || 'user' }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user._id, role: user.role || 'user' }, jwtSecret(), { expiresIn: '7d' });
     
     // Check onboarding
     const OnboardingData = require('../models/OnboardingData');

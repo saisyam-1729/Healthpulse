@@ -1,14 +1,15 @@
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('./jwtSecret');
 
+// Tokens are accepted only in the Authorization header. A token in the URL (?token=) ends up
+// in browser history, proxy logs and server request logs.
 const authMiddleware = (req, res, next) => {
-  const JWT_SECRET = process.env.JWT_SECRET || "healthpulse_fallback_secret_2026_secure_default";
-
-  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'No token provided' });
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(token, jwtSecret());
     next();
   } catch (err) {
     res.status(401).json({ error: 'Invalid token' });

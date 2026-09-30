@@ -1,6 +1,7 @@
 const Device = require('../models/Device');
 
 const jwt = require('jsonwebtoken');
+const { jwtSecret } = require('../config/jwtSecret');
 
 const deviceAuth = async (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
@@ -17,8 +18,7 @@ const deviceAuth = async (req, res, next) => {
   else if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const token = authHeader.split(' ')[1];
-      const JWT_SECRET = process.env.JWT_SECRET || "healthpulse_fallback_secret_2026_secure_default";
-      const decoded = jwt.verify(token, JWT_SECRET);
+      const decoded = jwt.verify(token, jwtSecret());
       req.user = decoded; // Attach user so backend knows who synced
       isAuthenticated = true;
     } catch (err) {

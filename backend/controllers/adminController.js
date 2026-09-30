@@ -3,29 +3,28 @@ const Feedback = require('../models/Feedback');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || "healthpulse_fallback_secret_2026_secure_default";
+const { jwtSecret } = require('../config/jwtSecret');
 
-exports.adminLogin = (req, res) => {
-  const { username, password } = req.body;
-  console.log("Admin login attempt:", req.body);
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  if (username === "admin" && password === "admin@@@123") {
-    // Generate a real JWT so protected admin routes can verify it
-    const token = jwt.sign(
-      { id: 'admin', role: 'admin', username: 'admin' },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-    return res.status(200).json({
-      success: true,
-      token
-    });
+// Admins are ordinary accounts with role 'admin' (see backend/scripts/adminAccounts.js).
+// The "username" field is the admin account's email address.
+exports.adminLogin = async (req, res) => {
+  const deny = () => res.status(401).json({ success: false, message: "Invalid admin credentials" });
+  try {
+    const { username, password } = req.body || {};
+    if (typeof username !== 'string' || typeof password !== 'string' || !EMAIL.test(username.trim()) || !password) {
+      return deny();
+    }
+    const user = await User.findOne({ email: username.trim().toLowerCase(), role: 'admin' });
+    if (!user || !user.password || !(await bcrypt.compare(password, user.password))) return deny();
+
+    const token = jwt.sign({ id: user._id, role: 'admin', email: user.email }, jwtSecret(), { expiresIn: '24h' });
+    return res.status(200).json({ success: true, token });
+  } catch (err) {
+    console.error('[Admin] login error:', err.message);
+    return res.status(500).json({ success: false, message: "Login failed" });
   }
-
-  return res.status(401).json({
-    success: false,
-    message: "Invalid admin credentials"
-  });
 };
 
 exports.getStats = async (req, res) => {

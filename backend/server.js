@@ -1,6 +1,12 @@
 const express = require("express");
 const dotenv = require("dotenv");
 dotenv.config();
+
+// Refuse to start without a signing secret (there is no fallback; see config/jwtSecret.js).
+if (!process.env.JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET is not set. Add a long random value to backend/.env (see backend/.env.example).");
+  process.exit(1);
+}
 // HealthPulse AI Upgrade (Groq + Skin + PDF v3): 2026-04-24T02:15:00Z
 
 const mongoose = require("mongoose");
@@ -75,14 +81,27 @@ const deviceLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Login endpoints: failed attempts only, to slow down password guessing.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  skipSuccessfulRequests: true,
+  message: { error: "Too many failed login attempts. Please try again in 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Apply rate limiters
+app.use("/api/auth/login", loginLimiter);
+app.use("/api/admin/login", loginLimiter);
 app.use("/api/", generalLimiter);
 app.use("/api/reports", reportLimiter); // Specific limiter for reports
 app.use("/api/device", deviceLimiter); // Higher limit for sensor data
 
 // Request logging middleware
+const { redactUrl } = require("./utils/redact");
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${redactUrl(req.url)}`);
   next();
 });
 
@@ -105,8 +124,8 @@ app.use("/api/skin-analyze", skinAnalyzeRoutes);
 app.use("/api/hospitals", hospitalRoutes);
 app.use("/api/track", require("./routes/trackRoutes"));
 
-// Static for uploads
-app.use('/uploads', express.static('uploads'));
+// Uploaded medical reports stay on disk but are no longer served publicly: /uploads used to
+// expose every user's files to anyone with the URL. No page in the app loads them.
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)

@@ -104,7 +104,7 @@ file-by-file table):**
 - The ESP32 firmware (both variants) and `supabase/`.
 - The existing `ai_service/` scikit-learn disease classifier and its
   `/ai/predict` and `/analyze` routes.
-- Authentication and the other backend routes. Known issues found in the
-  audit that were **not** fixed here (hardcoded admin login, fallback JWT
-  secret, unauthenticated `/uploads` and `GET /api/device`) are left for the
-  project owner; see OPEN_QUESTIONS.md.
+- The other backend routes. The security issues found in the audit
+  (hardcoded admin login, fallback JWT secret, unauthenticated `/uploads` and
+  `GET /api/device`) and a signup role-injection hole were fixed later; see
+  MODIFICATION_LOG.md MOD-037.

@@ -94,10 +94,19 @@ router.post('/data', deviceAuth, async (req, res) => {
 });
 
 // 3. GET /api/device
-// List all devices
-router.get('/', async (req, res) => {
+// Devices belonging to the signed-in user (admins see all). A device belongs to a user if it is
+// linked in UserDevice or has sent readings for them (BLE/LAN sync creates no link).
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const devices = await Device.find().sort({ lastSeen: -1 });
+    if (req.user.role === 'admin') {
+      return res.json(await Device.find().sort({ lastSeen: -1 }));
+    }
+    const [linked, withData] = await Promise.all([
+      UserDevice.find({ userId: req.user.id }).distinct('deviceId'),
+      HealthData.distinct('deviceId', { userId: req.user.id }),
+    ]);
+    const ids = [...new Set([...linked, ...withData].filter(Boolean))];
+    const devices = ids.length ? await Device.find({ deviceId: { $in: ids } }).sort({ lastSeen: -1 }) : [];
     res.json(devices);
   } catch (err) {
     res.status(500).json({ error: err.message });

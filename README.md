@@ -23,6 +23,22 @@ npm install
 npm run dev
 ```
 
+## Backend setup notes
+
+1. Copy `backend/.env.example` to `backend/.env` and set at least `MONGO_URI`,
+   a long random `JWT_SECRET` (the server will not start without it) and
+   `DEVICE_API_KEY`.
+2. Admin accounts: register a normal account in the app, then promote it:
+
+```bash
+node backend/scripts/adminAccounts.js promote you@example.com
+node backend/scripts/adminAccounts.js lock admin   # disable the old built-in admin account if it exists
+```
+
+   Sign in at `/admin-login` with that account's email and password.
+3. Device firmware: copy `esp32_health_monitor/secrets.example.h` to
+   `secrets.h` and fill in WiFi, backend address and the same device key.
+
 ## Diffusion-Based Physiological Modeling
 
 A conditional diffusion component for HealthPulse's heart-rate/SpO2/

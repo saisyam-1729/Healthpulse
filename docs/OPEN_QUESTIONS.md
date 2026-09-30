@@ -75,3 +75,12 @@ unilaterally before implementation starts.
 12. **Existing records** stored before MOD-032 contain placeholder `0` and
     `36.5` values that cannot be told apart from real ones. Decide whether to
     exclude pre-change records from any training or analysis.
+
+### Status after the security fixes (2026-10-01)
+
+- **#3 (pre-existing bugs):** the security findings are fixed (MOD-037), as
+  are the AI-service port, the `userId` typo and the ingestion data loss
+  (MOD-024, MOD-032). Still to do by whoever runs the deployment:
+  set `JWT_SECRET`, promote an admin account, lock any leftover `admin`
+  account (`node backend/scripts/adminAccounts.js lock admin`), and change the
+  WiFi password and device key that were published in git history.
