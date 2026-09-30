@@ -1,5 +1,5 @@
 /*
-  HealthPulse AI IoT Device v2.2 – Cloud-ready with Device ID
+  HealthPulse AI IoT Device v2.3 – Cloud-ready with Device ID
   ESP32 + MAX30102 + DS18B20 + SSD1306 OLED + Buzzer + Web Server + Cloud POST + mDNS
 
   FIXED: Backend URL, JSON fields, real SpO2 calc, DS18B20 temp, HR averaging
@@ -18,6 +18,16 @@
 #include <Adafruit_SSD1306.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <time.h>
+#include <sys/time.h>
+
+#define FIRMWARE_VERSION "2.3"
+
+// Data-collection mode (see docs/DATA_COLLECTION_PROTOCOL.md).
+// 0 = normal: send only while a finger is on the sensor with a valid reading.
+// 1 = collection: send every SEND_INTERVAL_MS even with no finger, so the backend records
+//     sensor gaps explicitly (fingerPresent=false). Use only for study sessions.
+#define COLLECTION_MODE 0
 
 // ── PIN DEFINITIONS ─────────────────────────────────────────────
 #define I2C_SDA      21
@@ -98,6 +108,10 @@ unsigned long lastDispUpdate   = 0;
 unsigned long lastScreenSwitch = 0;
 unsigned long lastTempRead     = 0;
 unsigned long lastDataSent     = 0;
+
+// Counts every scheduled send, including ones that fail or are skipped because WiFi is down,
+// so a jump in seq on the server means readings were lost in transmission.
+uint32_t sendSeq = 0;
 
 // Buzzer alert state machine
 bool   alertActive     = false;
@@ -318,7 +332,7 @@ void processSensors() {
 void readTemperature() {
   tempSensor.requestTemperatures();
   float t = tempSensor.getTempCByIndex(0);
-  if (t != DEVICE_DISCONNECTED_C && t > 20.0 && t < 50.0) {
+  if (t != DEVICE_DISCONNECTED_C && t >= 15.0 && t <= 45.0) {  // same bounds as the backend
     bodyTemp = t;
     tempValid = true;
   } else {
@@ -359,6 +373,16 @@ void checkAlerts() {
   }
 }
 
+// Device wall-clock time in epoch milliseconds, or "null" if NTP has not synced yet.
+String deviceTimeJson() {
+  struct timeval tv;
+  gettimeofday(&tv, nullptr);
+  if (tv.tv_sec < 1700000000L) return "null";  // clock not set (before Nov 2023)
+  char buf[24];
+  snprintf(buf, sizeof(buf), "%lu%03lu", (unsigned long)tv.tv_sec, (unsigned long)(tv.tv_usec / 1000));
+  return String(buf);
+}
+
 void sendDataToCloud() {
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("[Cloud] STA not connected - cannot send");
@@ -370,7 +394,11 @@ void sendDataToCloud() {
   json += "\"deviceId\":\"" + String(DEVICE_ID) + "\",";
   json += "\"heartRate\":" + String(hrDone ? String(displayedBPM, 1) : "null") + ",";
   json += "\"spo2\":" + String(spo2Valid ? String(displaySpO2, 1) : "null") + ",";
-  json += "\"temperature\":" + String(tempValid ? String(bodyTemp, 1) : "null");
+  json += "\"temperature\":" + String(tempValid ? String(bodyTemp, 1) : "null") + ",";
+  json += "\"fingerPresent\":" + String(fingerPresent ? "true" : "false") + ",";
+  json += "\"seq\":" + String(sendSeq) + ",";
+  json += "\"deviceTime\":" + deviceTimeJson() + ",";
+  json += "\"firmwareVersion\":\"" + String(FIRMWARE_VERSION) + "\"";
   json += "}";
 
   Serial.print("[Cloud] Sending: ");
@@ -546,7 +574,7 @@ void updateDisplay(unsigned long now) {
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("\n[HealthPulse] v2.2 Starting...");
+  Serial.println("\n[HealthPulse] v" FIRMWARE_VERSION " Starting...");
   Wire.begin(I2C_SDA, I2C_SCL);
 
   if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
@@ -560,13 +588,14 @@ void setup() {
   display.println("HealthPulse");
   display.setTextSize(1);
   display.setCursor(40, 35);
-  display.println("v2.2");
+  display.println("v" FIRMWARE_VERSION);
   display.setCursor(20, 50);
   display.println("Initializing...");
   display.display();
   delay(1500);
 
   setupWiFi();
+  configTime(0, 0, "pool.ntp.org", "time.google.com");  // UTC; used for deviceTime
   initSensors();
   setupServer();
 
@@ -588,8 +617,10 @@ void loop() {
   checkAlerts();
   server.handleClient();
 
-  if (fingerPresent && (hrDone || spo2Valid) && (now - lastDataSent >= SEND_INTERVAL_MS)) {
+  bool hasReading = fingerPresent && (hrDone || spo2Valid);
+  if ((hasReading || COLLECTION_MODE) && (now - lastDataSent >= SEND_INTERVAL_MS)) {
     lastDataSent = now;
+    sendSeq++;  // before the WiFi check, so a skipped send still leaves a gap in seq
     sendDataToCloud();
   }
 
