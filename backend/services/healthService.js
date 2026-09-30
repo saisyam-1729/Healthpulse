@@ -39,8 +39,10 @@ const analyzeUserHealth = async (userId, sensorData, deviceId) => {
 
     // 4. Calculate Health Score Fallback (if not from AI)
     let healthScore = 100;
-    if (sensorData.heartRate > 100 || sensorData.heartRate < 50) healthScore -= 15;
-    if (sensorData.spo2 < 95) healthScore -= 20;
+    const hr = sensorData.heartRate;
+    const spo2 = sensorData.spo2;
+    if (hr != null && (hr > 100 || hr < 50)) healthScore -= 15;
+    if (spo2 != null && spo2 < 95) healthScore -= 20;
     
     healthScore = Math.max(0, Math.min(100, healthScore));
 

@@ -82,16 +82,17 @@ const generateHealthInsights = (userData = {}, vitalsData = {}, recentReadings =
 
   // Cardiac Trends (Trends)
   if (recentReadings.length >= 3) {
-    const hrTrend = recentReadings.map(r => r.heartRate);
-    const spo2Trend = recentReadings.map(r => r.spo2);
+    // Missing channels are stored as null; a trend is only judged on real readings.
+    const hrTrend = recentReadings.map(r => r.heartRate).filter(v => v != null && v > 0);
+    const spo2Trend = recentReadings.map(r => r.spo2).filter(v => v != null && v > 0);
     
     const isHrIncreasing = hrTrend.every((v, i) => i === 0 || v >= hrTrend[i-1]);
     const isSpo2Decreasing = spo2Trend.every((v, i) => i === 0 || v <= spo2Trend[i-1]);
 
-    if (isHrIncreasing && hrTrend[hrTrend.length - 1] > hrTrend[0] && hr > 90) {
+    if (hrTrend.length >= 3 && isHrIncreasing && hrTrend[hrTrend.length - 1] > hrTrend[0] && hr > 90) {
       alerts.push({ severity: 'high', type: 'trend', message: 'Predictive Alert: Sustained upward trend in heart rate detected.' });
     }
-    if (isSpo2Decreasing && spo2Trend[spo2Trend.length - 1] < spo2Trend[0] && spo2 < 97) {
+    if (spo2Trend.length >= 3 && isSpo2Decreasing && spo2Trend[spo2Trend.length - 1] < spo2Trend[0] && spo2 > 0 && spo2 < 97) {
       alerts.push({ severity: 'high', type: 'trend', message: 'Predictive Alert: Potential respiratory distress developing (SpO2 downward trend).' });
     }
   }

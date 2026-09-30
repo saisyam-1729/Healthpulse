@@ -1,8 +1,8 @@
 export type StressLevel = "low" | "moderate" | "high";
 
 export function computeStressScore(params: {
-  heartRate?: number;
-  temperature?: number;
+  heartRate?: number | null;
+  temperature?: number | null;
   symptomCount?: number;
   sleepHours?: number;
 }): number {
@@ -10,12 +10,15 @@ export function computeStressScore(params: {
   let score = 0;
 
   // Heart rate contribution (0-30)
-  if (heartRate > 100) score += Math.min(30, (heartRate - 100) * 1.5);
-  else if (heartRate < 60) score += Math.min(15, (60 - heartRate) * 1.5);
+  // A missing reading (null, or 0 from the device) contributes nothing, rather than counting as "very low".
+  const hasHR = heartRate != null && heartRate > 0;
+  const hasTemp = temperature != null && temperature > 0;
+  if (hasHR && heartRate > 100) score += Math.min(30, (heartRate - 100) * 1.5);
+  else if (hasHR && heartRate < 60) score += Math.min(15, (60 - heartRate) * 1.5);
 
   // Temperature contribution (0-25)
-  if (temperature > 37.5) score += Math.min(25, (temperature - 37.5) * 15);
-  else if (temperature < 36) score += Math.min(15, (36 - temperature) * 10);
+  if (hasTemp && temperature > 37.5) score += Math.min(25, (temperature - 37.5) * 15);
+  else if (hasTemp && temperature < 36) score += Math.min(15, (36 - temperature) * 10);
 
   // Symptom count contribution (0-25)
   score += Math.min(25, symptomCount * 5);

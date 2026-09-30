@@ -5,6 +5,7 @@ const UserDevice = require('../models/UserDevice');
 const HealthData = require('../models/HealthData');
 const authMiddleware = require('../config/authMiddleware');
 const deviceAuth = require('../middleware/deviceAuth');
+const { sanitizeVitals } = require('../services/vitalsValidation');
 
 // 1. POST /api/device/register
 // Register device on startup
@@ -33,17 +34,12 @@ const { analyzeUserHealth } = require('../services/healthService');
 // Update status and lastSeen from ESP32
 router.post('/data', deviceAuth, async (req, res) => {
   try {
-    const { deviceId, heartRate, spo2, temperature } = req.body;
+    const { deviceId } = req.body;
     if (!deviceId) return res.status(400).json({ error: "deviceId is required" });
 
-    // Validation Rules
-    const isValidHR = heartRate === null || (heartRate >= 30 && heartRate <= 220);
-    const isValidSpO2 = spo2 === null || (spo2 >= 0 && spo2 <= 100);
-    const isValidTemp = temperature === null || (temperature >= 30 && temperature <= 45);
-
-    if (!isValidHR || !isValidSpO2 || !isValidTemp) {
-      return res.status(400).json({ error: "Invalid sensor data ranges" });
-    }
+    // An implausible value is dropped for its own channel only; the rest of the reading is kept.
+    const { values, discarded } = sanitizeVitals(req.body);
+    const { heartRate, spo2, temperature } = values;
 
     // 1. Update/Create Device status (Auto-registration)
     const device = await Device.findOneAndUpdate(
@@ -65,9 +61,9 @@ router.post('/data', deviceAuth, async (req, res) => {
         const newHealthRecord = new HealthData({
           userId: linkedUserId,
           deviceId: deviceId,
-          heartRate: heartRate || 0,
-          spo2: spo2 || 0,
-          temperature: temperature || 36.5
+          heartRate,
+          spo2,
+          temperature
         });
         await newHealthRecord.save();
         console.log(`[IoT] Saved data for User: ${linkedUserId} via Device: ${deviceId}`);
@@ -84,7 +80,7 @@ router.post('/data', deviceAuth, async (req, res) => {
       // We still proceed to return 200 so the ESP32 doesn't error out
     }
     
-    res.json({ message: "Status updated and data processed", device });
+    res.json({ message: "Status updated and data processed", device, discardedFields: discarded });
   } catch (err) {
     console.error("Device data global error:", err);
     res.status(500).json({ error: err.message });

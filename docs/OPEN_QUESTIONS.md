@@ -59,3 +59,19 @@ unilaterally before implementation starts.
 10. **Is the backend's 30 degC temperature floor correct for the
     DS18B20?** Real skin temperatures in the Non-EEG dataset are often
     below 30 degC; readings like that are currently rejected at ingestion.
+
+### Status after 2026-10-01
+
+- **#9 (forecast panel):** interim decision taken - hidden for regular users
+  (MOD-031). Still open: what it should show when it returns.
+- **#10 (30 degC floor):** replaced by a per-channel plausibility check at
+  15-45 degC (MOD-032). Still open, and now more important:
+11. **Clinical rules assume core temperature, but the sensor measures skin.**
+    The fever alert (`> 37.5 degC`, `healthEngine.js`) will rarely fire on
+    skin, and the stress score adds points for any temperature below 36 degC
+    (`src/lib/stress.ts`), which a fingertip reading almost always is. These
+    thresholds need a decision from someone with clinical input; they were
+    deliberately left unchanged.
+12. **Existing records** stored before MOD-032 contain placeholder `0` and
+    `36.5` values that cannot be told apart from real ones. Decide whether to
+    exclude pre-change records from any training or analysis.

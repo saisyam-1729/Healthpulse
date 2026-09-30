@@ -10,17 +10,18 @@ const healthDataSchema = new mongoose.Schema({
     type: String,
     required: false // Optional for manual entries, though usually provided by IoT
   },
-  heartRate: { 
-    type: Number, 
-    required: true 
+  // null means "no valid reading for this channel at this time" - never a placeholder value.
+  heartRate: {
+    type: Number,
+    default: null
   },
-  spo2: { 
-    type: Number, 
-    required: true 
+  spo2: {
+    type: Number,
+    default: null
   },
-  temperature: { 
-    type: Number, 
-    required: true 
+  temperature: {
+    type: Number,
+    default: null
   },
   createdAt: { 
     type: Date, 

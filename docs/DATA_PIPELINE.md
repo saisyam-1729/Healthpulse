@@ -191,3 +191,20 @@ briefly losing a valid finger-present reading), not real patient data.
 | Identifiers | `userId` + optional `deviceId`, no session ID | Windows should be built per (`userId`,`deviceId`) with gap-based session splitting |
 | Ground truth for stress | None — only heuristic scores exist | Stress-conditional generation is not well-grounded without new labels; treat as future work, not a primary task (see MODEL_SELECTION.md) |
 | Available real training data | None gathered/exported for this task | Development and smoke-testing must use the synthetic generator (Phase 34); do not fabricate benchmark results against data that doesn't exist |
+
+
+## 12. Update (2026-10-01): ingestion changes
+
+The behaviour described in section 5 changed (MOD-032):
+
+- `POST /api/device/data` checks each channel separately against physical
+  plausibility bounds (HR 30-220 bpm, SpO2 0-100 %, temperature 15-45 degC).
+  An implausible value is stored as `null` for that channel only; the other
+  channels are kept. Previously one out-of-range temperature rejected the
+  whole reading.
+- A missing value is stored as `null`. Previously missing values were saved
+  as `0` bpm, `0` % or `36.5` degC, indistinguishable from real readings.
+  **Records written before this change still contain those placeholders.**
+- A reading is stored only if it has a valid HR or SpO2 (unchanged).
+- Temperature from the DS18B20 fingertip probe is skin temperature and often
+  below 30 degC; such readings are now kept.

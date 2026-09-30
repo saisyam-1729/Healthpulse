@@ -50,7 +50,7 @@ const checkCriticalConditions = (onboardingData, sensorData = {}) => {
   if (onboardingData.smoking && onboardingData.smoking !== 'never') {
     recommendations.lifestyle.push("Smoking cessation program recommended");
     recommendations.diet.push("Increase Vitamin C and antioxidant intake");
-    if (spo2 < 95) {
+    if (spo2 > 0 && spo2 < 95) {
       alerts.push({ type: 'smoker_hypoxia', severity: 'moderate', message: 'Lower SpO2 levels likely correlated with smoking history.' });
     }
   }
