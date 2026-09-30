@@ -208,3 +208,21 @@ The behaviour described in section 5 changed (MOD-032):
 - A reading is stored only if it has a valid HR or SpO2 (unchanged).
 - Temperature from the DS18B20 fingertip probe is skin temperature and often
   below 30 degC; such readings are now kept.
+
+### Firmware 2.3 fields (MOD-035)
+
+Readings from `esp32_health_monitor` v2.3 also carry `fingerPresent`, `seq`,
+`deviceTime` and `firmwareVersion`, stored on `HealthData`. How to read them:
+
+- **Sensor gap:** in collection mode the device keeps sending every 5 s, with
+  `fingerPresent: false` and no values.
+- **Transmission gap:** `seq` jumps (for example 41 then 44 means two sends
+  were lost or skipped because WiFi was down).
+- **Timing:** prefer `deviceTime` (the device clock, NTP-synced, UTC) over
+  `createdAt` (server arrival time); `deviceTime` is null until the device has
+  synced.
+- In normal mode (`COLLECTION_MODE 0`) the device still sends only while a
+  finger gives a valid reading, so a time gap without a `seq` jump means "no
+  valid reading", and a `seq` jump means "lost in transmission".
+- Heart rate from firmware before 2.3 is frozen per finger placement (MOD-034)
+  and should not be used as a time series.

@@ -59,3 +59,20 @@ test('a missing SpO2 never raises an oxygen alert', () => {
   const alerts = generateHealthInsights({}, { heartRate: 70, spo2: null, temperature: null }, []).alerts;
   assert.ok(!alerts.some((a) => /SpO2|Oxygen/i.test(a.message)));
 });
+
+const { sanitizeMetadata } = require('../services/vitalsValidation');
+
+test('metadata: valid values pass, anything malformed becomes null', () => {
+  const now = Date.UTC(2026, 9, 1);
+  const ok = sanitizeMetadata({ fingerPresent: false, seq: 7, deviceTime: now - 1000, firmwareVersion: '2.3' }, now);
+  assert.deepStrictEqual([ok.fingerPresent, ok.seq, ok.deviceTime.getTime(), ok.firmwareVersion], [false, 7, now - 1000, '2.3']);
+  const bad = sanitizeMetadata({ fingerPresent: 1, seq: 1.5, deviceTime: 1000, firmwareVersion: 'x'.repeat(40) }, now);
+  assert.deepStrictEqual(bad, { fingerPresent: null, seq: null, deviceTime: null, firmwareVersion: null });
+});
+
+test('metadata: an unsynced or far-future device clock is rejected', () => {
+  const now = Date.UTC(2026, 9, 1);
+  assert.strictEqual(sanitizeMetadata({ deviceTime: 0 }, now).deviceTime, null);
+  assert.strictEqual(sanitizeMetadata({ deviceTime: now + 3 * 86400000 }, now).deviceTime, null);
+  assert.ok(sanitizeMetadata({ deviceTime: now + 3600000 }, now).deviceTime instanceof Date);
+});

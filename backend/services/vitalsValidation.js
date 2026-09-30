@@ -35,4 +35,22 @@ function sanitizeVitals(input = {}) {
   return { values, discarded };
 }
 
-module.exports = { sanitizeVitals, PLAUSIBLE_RANGES };
+// Earliest accepted device clock (2023-11-15): anything before means the device has not synced NTP.
+const MIN_DEVICE_TIME_MS = 1700000000000;
+const MAX_CLOCK_AHEAD_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Optional reading metadata sent by firmware >= 2.3. Anything malformed is ignored (null),
+ * never allowed to reject the reading itself.
+ */
+function sanitizeMetadata(input = {}, now = Date.now()) {
+  const fingerPresent = typeof input.fingerPresent === 'boolean' ? input.fingerPresent : null;
+  const seq = Number.isInteger(input.seq) && input.seq >= 0 && input.seq <= 0xffffffff ? input.seq : null;
+  const t = typeof input.deviceTime === 'number' ? input.deviceTime : NaN;
+  const deviceTime = Number.isFinite(t) && t >= MIN_DEVICE_TIME_MS && t <= now + MAX_CLOCK_AHEAD_MS ? new Date(t) : null;
+  const fw = input.firmwareVersion;
+  const firmwareVersion = typeof fw === 'string' && /^[\w.-]{1,16}$/.test(fw) ? fw : null;
+  return { fingerPresent, seq, deviceTime, firmwareVersion };
+}
+
+module.exports = { sanitizeVitals, sanitizeMetadata, PLAUSIBLE_RANGES };

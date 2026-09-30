@@ -41,3 +41,10 @@ test('future timestamps continue from the anchor', () => {
   const f = futureTimestamps(T0, 2, 5);
   assert.deepStrictEqual(f, [new Date(T0 + 5000).toISOString(), new Date(T0 + 10000).toISOString()]);
 });
+
+test('a row with no values (no-finger marker) is a gap, not an observation', () => {
+  const marker = { createdAt: new Date(T0 + 5000), heartRate: null, spo2: null, temperature: null };
+  const g = buildGrid([at(0, 70), marker, at(10, 72)], { stepSeconds: 5, points: 3 });
+  assert.strictEqual(g.observedSteps, 2);
+  assert.strictEqual(g.rows[1].heartRate, null);
+});

@@ -23,6 +23,12 @@ const healthDataSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
+  // Sent by firmware >= 2.3 (docs/DATA_COLLECTION_PROTOCOL.md). A row with fingerPresent=false
+  // and no values records a sensor gap; a jump in seq means readings were lost in transmission.
+  fingerPresent: { type: Boolean, default: null },
+  seq: { type: Number, default: null },
+  deviceTime: { type: Date, default: null },
+  firmwareVersion: { type: String, default: null },
   createdAt: { 
     type: Date, 
     default: Date.now 

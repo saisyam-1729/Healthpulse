@@ -5,7 +5,7 @@ const UserDevice = require('../models/UserDevice');
 const HealthData = require('../models/HealthData');
 const authMiddleware = require('../config/authMiddleware');
 const deviceAuth = require('../middleware/deviceAuth');
-const { sanitizeVitals } = require('../services/vitalsValidation');
+const { sanitizeVitals, sanitizeMetadata } = require('../services/vitalsValidation');
 
 // 1. POST /api/device/register
 // Register device on startup
@@ -40,6 +40,8 @@ router.post('/data', deviceAuth, async (req, res) => {
     // An implausible value is dropped for its own channel only; the rest of the reading is kept.
     const { values, discarded } = sanitizeVitals(req.body);
     const { heartRate, spo2, temperature } = values;
+    const meta = sanitizeMetadata(req.body);
+    const hasVitals = heartRate !== null || spo2 !== null;
 
     // 1. Update/Create Device status (Auto-registration)
     const device = await Device.findOneAndUpdate(
@@ -57,20 +59,24 @@ router.post('/data', deviceAuth, async (req, res) => {
         if (mapping) linkedUserId = mapping.userId;
       }
 
-      if (linkedUserId && (heartRate !== null || spo2 !== null)) {
+      // Store readings with a valid HR or SpO2, and explicit "no finger" markers from collection-mode firmware.
+      if (linkedUserId && (hasVitals || meta.fingerPresent === false)) {
         const newHealthRecord = new HealthData({
           userId: linkedUserId,
           deviceId: deviceId,
           heartRate,
           spo2,
-          temperature
+          temperature,
+          ...meta
         });
         await newHealthRecord.save();
         console.log(`[IoT] Saved data for User: ${linkedUserId} via Device: ${deviceId}`);
         
         // 3. Trigger ASYNC intelligent analysis (Non-blocking)
-        analyzeUserHealth(linkedUserId, { heartRate, spo2, temperature }, deviceId)
-          .catch(err => console.error("[IoT] Analysis Background Error:", err));
+        if (hasVitals) {
+          analyzeUserHealth(linkedUserId, { heartRate, spo2, temperature }, deviceId)
+            .catch(err => console.error("[IoT] Analysis Background Error:", err));
+        }
 
       } else if (!linkedUserId) {
         console.log(`[IoT] Ignored data for unmapped Device: ${deviceId}`);

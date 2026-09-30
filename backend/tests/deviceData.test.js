@@ -76,6 +76,36 @@ test('a reading with no valid HR or SpO2 is not stored', async () => {
   assert.strictEqual(saved.length, 0);
 });
 
+test('firmware 2.3 metadata is stored with the reading', async () => {
+  const t = Date.UTC(2026, 9, 1, 12, 0, 0);
+  await post({ heartRate: 71, spo2: 98, temperature: 30.2, fingerPresent: true, seq: 42, deviceTime: t, firmwareVersion: '2.3' });
+  assert.strictEqual(saved[0].fingerPresent, true);
+  assert.strictEqual(saved[0].seq, 42);
+  assert.strictEqual(saved[0].deviceTime.getTime(), t);
+  assert.strictEqual(saved[0].firmwareVersion, '2.3');
+});
+
+test('a "no finger" marker from collection mode is stored as a gap and not analysed', async () => {
+  const res = await post({ heartRate: null, spo2: null, temperature: 29.8, fingerPresent: false, seq: 43 });
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(saved.length, 1);
+  assert.deepStrictEqual([saved[0].heartRate, saved[0].spo2, saved[0].fingerPresent, saved[0].seq], [null, null, false, 43]);
+  assert.strictEqual(analysed.length, 0);
+});
+
+test('malformed metadata is ignored, never rejects the reading', async () => {
+  const res = await post({ heartRate: 70, spo2: 97, fingerPresent: 'yes', seq: -3, deviceTime: 12345, firmwareVersion: '<script>' });
+  assert.strictEqual(res.status, 200);
+  assert.deepStrictEqual([saved[0].fingerPresent, saved[0].seq, saved[0].deviceTime, saved[0].firmwareVersion], [null, null, null, null]);
+  assert.strictEqual(saved[0].heartRate, 70);
+});
+
+test('older firmware without metadata behaves as before', async () => {
+  const res = await post({ heartRate: null, spo2: null, temperature: 33 });
+  assert.strictEqual(res.status, 200);
+  assert.strictEqual(saved.length, 0);
+});
+
 test('deviceId is still required', async () => {
   const res = await fetch(`${base}/data`, {
     method: 'POST',

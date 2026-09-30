@@ -29,8 +29,11 @@ function buildGrid(readings, { stepSeconds = 5, points = 24 } = {}) {
     if (t < start - stepMs / 2) continue;
     const idx = Math.round((t - start) / stepMs);
     if (idx < 0 || idx >= points) continue;
+    const row = Object.fromEntries(CHANNELS.map((c) => [c, Number.isFinite(r[c]) ? r[c] : null]));
+    // A row with no values (e.g. a "no finger" marker) is a gap, not an observation.
+    if (CHANNELS.every((c) => row[c] === null)) continue;
     // Later readings in the same step overwrite earlier ones.
-    rows[idx] = Object.fromEntries(CHANNELS.map((c) => [c, Number.isFinite(r[c]) ? r[c] : null]));
+    rows[idx] = row;
   }
 
   const filled = rows.map((row) => row ?? Object.fromEntries(CHANNELS.map((c) => [c, null])));
