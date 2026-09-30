@@ -84,6 +84,7 @@ WebServer server(80);
 float  displayedBPM   = 0.0;
 bool   hrDone         = false;
 int    bpmCollected   = 0;
+int    bpmIdx         = 0;   // next slot in the rolling bpmSamples buffer
 float  bpmSamples[HR_SAMPLE_COUNT];
 double displaySpO2    = 0.0;
 bool   spo2Valid      = false;
@@ -186,6 +187,7 @@ double median(double* arr, int n) {
 
 void resetAll(unsigned long now) {
   bpmCollected = 0;
+  bpmIdx = 0;
   hrDone = false;
   displayedBPM = 0;
   lastBeat = now;
@@ -240,20 +242,24 @@ void processSensors() {
       lastBeat = now;
       float bpm = 60000.0f / (float)delta;
 
-      if (!hrDone && bpm >= 40 && bpm <= 180) {
-        if (bpmCollected < HR_SAMPLE_COUNT) {
-          bpmSamples[bpmCollected] = bpm;
-          bpmCollected++;
-          heartBlinkOn = true;
-          heartBlinkTime = now;
-        }
+      // Rolling average of the last HR_SAMPLE_COUNT beats, updated on every beat.
+      // (Up to v2.2 the first average was kept until the finger was lifted, so the
+      // reported heart rate never changed during a reading.)
+      if (bpm >= 40 && bpm <= 180) {
+        bpmSamples[bpmIdx] = bpm;
+        bpmIdx = (bpmIdx + 1) % HR_SAMPLE_COUNT;
+        if (bpmCollected < HR_SAMPLE_COUNT) bpmCollected++;
+        heartBlinkOn = true;
+        heartBlinkTime = now;
         if (bpmCollected >= HR_SAMPLE_COUNT) {
           float sum = 0;
           for (int i = 0; i < HR_SAMPLE_COUNT; i++) sum += bpmSamples[i];
           displayedBPM = sum / HR_SAMPLE_COUNT;
+          if (!hrDone) {
+            Serial.print("[HR] First BPM: ");
+            Serial.println(displayedBPM);
+          }
           hrDone = true;
-          Serial.print("[HR] Final BPM: ");
-          Serial.println(displayedBPM);
         }
       }
 
