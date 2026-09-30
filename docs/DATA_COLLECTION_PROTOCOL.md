@@ -48,6 +48,8 @@ Confirmed by: ______________________  Date: ____________
 
 - HealthPulse device (`esp32_health_monitor`) with **firmware 2.3 or later
   and `COLLECTION_MODE` set to 1**, connected to the backend over WiFi.
+  WiFi and keys go in `esp32_health_monitor/secrets.h` (copy
+  `secrets.example.h`; never commit it).
 - A **reference pulse oximeter**: a clip-on fingertip oximeter, ideally one
   with a medical certification (e.g. CE or FDA-cleared), worn on a finger of
   the **other** hand. If it cannot export data, film its display with a phone

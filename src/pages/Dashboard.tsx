@@ -24,6 +24,7 @@ import AIInsightsPanel from "@/components/dashboard/AIInsightsPanel";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 import ForecastPanel from "@/components/dashboard/ForecastPanel";
 import { isForecastPanelEnabled } from "@/lib/forecast";
+import { DEVICE_LOCAL_KEY } from "@/lib/deviceConfig";
 import { motion } from "framer-motion";
 
 interface HealthReading {
@@ -114,7 +115,7 @@ export default function Dashboard() {
   const fetchLocalData = async () => {
     try {
       const savedIp = localStorage.getItem("healthpulse_local_ip") || "192.168.4.1";
-      const response = await axios.get(`http://${savedIp}/data?key=ESP32_KEY`, { timeout: 2000 });
+      const response = await axios.get(`http://${savedIp}/data?key=${encodeURIComponent(DEVICE_LOCAL_KEY)}`, { timeout: 2000 });
       const data = response.data;
       const newReading: HealthReading = {
         heart_rate: data.heartRate ?? 0,

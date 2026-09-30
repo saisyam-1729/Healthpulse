@@ -36,24 +36,30 @@
 #define ONE_WIRE_BUS 15
 #define OLED_ADDR    0x3C
 
-// ── Wi-Fi credentials ───────────────────────────────────────────
-const char* sta_ssid     = "S_K";
-const char* sta_password = "SKsidd@005";
-const char* ap_ssid      = "ESP32-Health";
-const char* ap_password  = "12345678";
+// ── Credentials and network settings ────────────────────────────
+// Kept in secrets.h (gitignored). Copy secrets.example.h to secrets.h and fill it in.
+#if __has_include("secrets.h")
+#include "secrets.h"
+#else
+#error "Missing secrets.h: copy secrets.example.h to secrets.h and fill in your WiFi and device settings."
+#endif
+
+const char* sta_ssid     = WIFI_SSID;
+const char* sta_password = WIFI_PASSWORD;
+const char* ap_ssid      = AP_SSID;
+const char* ap_password  = AP_PASSWORD;
 
 // ── Device ID ───────────────────────────────────────────────────
 #define DEVICE_ID  "ESP32-HEALTH-001"
 
-// ── Backend URL ─────────────────────────────────────────────────
-// Must match: backend server.js port (5001) + deviceRoutes path (/api/device/data)
-const char* backend_url = "http://192.168.1.5:5001/api/device/data";
+// ── Backend URL (backend deviceRoutes path /api/device/data) ───
+const char* backend_url = BACKEND_URL;
 
 // ── API Key (must match backend .env DEVICE_API_KEY) ────────────
-const char* api_key = "ESP32_SECRET";
+const char* api_key = DEVICE_API_KEY;
 
 // ── Local API Key for AP web server ─────────────────────────────
-const char* localApiKey = "ESP32_KEY";
+const char* localApiKey = LOCAL_API_KEY;
 
 // ── mDNS hostname ──────────────────────────────────────────────
 const char* mdns_hostname = "healthpulse";
@@ -446,7 +452,7 @@ void handleData() {
     json += "}";
     server.send(200, "application/json", json);
   } else {
-    server.send(401, "application/json", "{\"error\":\"Unauthorized - add ?key=ESP32_KEY\"}");
+    server.send(401, "application/json", "{\"error\":\"Unauthorized - missing or wrong ?key=\"}");
   }
 }
 

@@ -12,6 +12,7 @@ import axios from "axios";
 import DashboardLayout from "@/components/DashboardLayout";
 import { motion, AnimatePresence } from "framer-motion";
 import GlassModal from "@/components/GlassModal";
+import { DEVICE_AP_PASSWORD, DEVICE_LOCAL_KEY } from "@/lib/deviceConfig";
 
 type ScanState = "IDLE" | "SCANNING" | "SUCCESS" | "ERROR";
 type BLEState = "IDLE" | "PAIRING" | "CONNECTED" | "ERROR";
@@ -86,10 +87,10 @@ export default function DeviceConnect() {
   const handleScan = async () => {
     setScanState("SCANNING");
     const targets = [
-      { url: "http://192.168.4.1/data?key=ESP32_KEY", label: "AP Mode (192.168.4.1)" },
-      { url: "http://healthpulse.local/data?key=ESP32_KEY", label: "mDNS (healthpulse.local)" },
+      { url: `http://192.168.4.1/data?key=${encodeURIComponent(DEVICE_LOCAL_KEY)}`, label: "AP Mode (192.168.4.1)" },
+      { url: `http://healthpulse.local/data?key=${encodeURIComponent(DEVICE_LOCAL_KEY)}`, label: "mDNS (healthpulse.local)" },
     ];
-    for (let i = 1; i <= 20; i++) targets.push({ url: `http://192.168.1.${i}/data?key=ESP32_KEY`, label: `LAN (192.168.1.${i})` });
+    for (let i = 1; i <= 20; i++) targets.push({ url: `http://192.168.1.${i}/data?key=${encodeURIComponent(DEVICE_LOCAL_KEY)}`, label: `LAN (192.168.1.${i})` });
     for (const target of targets) {
       try {
         const response = await axios.get(target.url, { timeout: 1500 });
@@ -313,7 +314,7 @@ export default function DeviceConnect() {
               {/* WiFi/Local Section */}
               <GlassSection icon={Wifi} title="Direct WiFi / Offline" color="teal">
                 <p className="font-mono text-[10px] text-muted-foreground mb-3 leading-relaxed">
-                  Connect to <span className="text-teal-700 dark:text-teal-400 font-bold">ESP32-Health</span> WiFi (Pass: 12345678) then scan.
+                  Connect to <span className="text-teal-700 dark:text-teal-400 font-bold">ESP32-Health</span> WiFi (Pass: {DEVICE_AP_PASSWORD}) then scan.
                 </p>
                 <AnimatePresence mode="wait">
                   {scanState === "IDLE" && (

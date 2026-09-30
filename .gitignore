@@ -40,3 +40,7 @@ ai_service/checkpoints_dev/
 # Downloaded datasets (never commit)
 ai_service/data/raw/
 ai_service/checkpoints_noneeg_*/
+
+# Firmware credentials (copy secrets.example.h to secrets.h)
+esp32_health_monitor/secrets.h
+esp32_ble_firmware/secrets.h

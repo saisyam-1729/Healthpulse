@@ -10,7 +10,11 @@ const TARGETS = [
 ];
 const DEVICE_ID = 'ESP32-HEALTH-001'; 
 const USER_ID = '69c023b0d858206298879506'; // Your verified User ID
-const API_KEY = 'ESP32_SECRET';
+const API_KEY = process.env.DEVICE_API_KEY; // same value as backend/.env
+if (!API_KEY) {
+  console.error('Set DEVICE_API_KEY (must match backend/.env) before running this bridge.');
+  process.exit(1);
+}
 
 const app = express();
 app.use(cors());
